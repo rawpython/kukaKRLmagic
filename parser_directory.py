@@ -6,21 +6,27 @@ given a base directory
 """
 
 import os
-
+import parser_file
 
 def run_fast_scandir(root_dir, dirs, files, ext):    # dir: str, ext: list
-    dirs.append(root_dir)
     for f in os.scandir(root_dir):
         if f.is_dir():
-            dirs.append(f.path)
+            dirs[f.name] = f.path
             run_fast_scandir(f.path, dirs, files, ext)
         if f.is_file():
             #if os.path.splitext(f.name)[1].lower() in ext:
-            files.append(f.path)
+            files[f.name] = f.path
 
-dirs = []
-files = []
-
-run_fast_scandir('./', dirs, files, [".jpg"])
+dirs = {}
+files = {}
+run_fast_scandir(os.path.dirname(os.path.abspath(__file__)), dirs, files, [".jpg"])
 #print(dirs)
-print('\n'.join(files))
+print(files)
+
+#parse $config.dat e produrre il globals.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
+parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/system_vars.py", "w+")
+#parse modulename.dat
+#parse modulename.src
+#parse sps.sub
+
+
