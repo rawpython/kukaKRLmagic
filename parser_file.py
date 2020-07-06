@@ -19,6 +19,8 @@ _global = "(GLOBAL +)?"
 _exit = line_begin + "EXIT" + line_end
 _halt = line_begin + "HALT" + line_end
 
+re_binary_number = "'b([0-1]+)'"
+
 re_variable_assignment = line_begin + _global + "(DECL +)?" + variable_name + " +" + variable_name + " *= *([^#]+)" + line_end
 types = ['bool', 'char', 'int', 'real', 'frame', 'axis', 'pos', 'e6pos', 'e6axis']
 re_variable_decl = line_begin + _global + """(DECL +)?(?:""" + type_name + """) +((?:""" + variable_name + ")(?: *, *" + variable_name + ")*)" + line_end
@@ -202,6 +204,11 @@ def parse(filename_in, filename_out, write_mode):
         #since KRL is case insensitive, and Python is case sensitive, the code is transformed to lower making it all the variable names equal in the code
         code_line = code_line.lower()
 
+        #replace binary numbers
+        result = re.search(re_binary_number,code_line)
+        if not result is None:
+            value = result.groups()[0]
+            code_line = code_line.replace(code_line[result.span()[0]:result.span()[1]], "0b%s"%value) 
 
         #replace { } bracket defined structs
         if '{' in code_line:
@@ -396,7 +403,14 @@ def parse(filename_in, filename_out, write_mode):
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 if actual_code_block is None or (not var in actual_code_block.param_names):
-                    out_line.append("%s = %s()"%(var,type_name))
+                    #check if it is an array
+                    array_item_count = re.search('\[ *([0-9]+) *\]', var)
+                    if not array_item_count is None:
+                        out_line.append("%s = [%s()]*%s"%(var,type_name,array_item_count.groups()[0]))
+                        #[int()]*10
+                        #[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+                    else:
+                        out_line.append("%s = %s()"%(var,type_name))
 
         if instruction_name == 'variable assignment':
             elements = result.groups()
