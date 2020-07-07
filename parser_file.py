@@ -7,7 +7,8 @@ import os
 re_meta = r"""(?:^ *\&)"""
 line_begin = r"""(?:^ *)"""
 line_end = r"""(?: *#+.*)?$"""    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
-variable_name = r"""([\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*(?:\[ *[0-9]* *\])?)"""
+re_comment = line_begin + line_end
+variable_name = r"""([\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*(?:\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])?)"""
 type_name = r"""([a-z_A-Z]{1}[a-z_A-Z0-9]*)"""
 int_or_real_number = r"""((?:\+|-)?[0-9]+(?:\.[0-9]+)?)"""
 string = r"""(".*")"""
@@ -22,8 +23,8 @@ _halt = line_begin + "HALT" + line_end
 re_binary_number = "'b([0-1]+)'"
 
 re_variable_assignment = line_begin + _global + "(DECL +)?" + variable_name + " +" + variable_name + " *= *([^#]+)" + line_end
-types = ['bool', 'char', 'int', 'real', 'frame', 'axis', 'pos', 'e6pos', 'e6axis']
-re_variable_decl = line_begin + _global + """(DECL +)?(?:""" + type_name + """) +((?:""" + variable_name + ")(?: *, *" + variable_name + ")*)" + line_end
+array_index = r"(\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])"
+re_variable_decl = line_begin + _global + "(DECL +)?([^ =]+) +(([^ =]+"+array_index+"?)( *, *[^ =]+"+array_index+"?)*)" + line_end
 #re.search(re_variable_decl, "global decl e6POS potato[ 123], cip, ciop", re.IGNORECASE).groups()
 #('global ', 'decl ', 'e6POS', 'potato[ 123], cip, ciop', 'potato[ 123]', 'ciop')
 
@@ -205,7 +206,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "INT DEF_OV_PRO=100" in code_line:
+        if ",]" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -256,11 +257,12 @@ def parse(filename_in, filename_out, write_mode):
 
         result = None 
         instruction_name = ""
-        for k,v in instructions_defs.items():
-            result = re.search(v, code_line, re.IGNORECASE) 
-            if not result is None:
-                instruction_name = k
-                break
+        if re.search(re_comment, code_line) is None:
+            for k,v in instructions_defs.items():
+                result = re.search(v, code_line, re.IGNORECASE) 
+                if not result is None:
+                    instruction_name = k
+                    break
 
         if instruction_name == 'meta instruction':
             continue
@@ -384,16 +386,19 @@ def parse(filename_in, filename_out, write_mode):
             """
             is_global = not result.groups()[0] is None 
             type_name = result.groups()[2]
-            variables_names = result.groups()[3].split(',')
+            variables_names = code_line.split(type_name, maxsplit=1)[1] #result.groups()[3].split(',')
+            variables_names = re.split(r"[^\[]] *,", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
             out_line = []
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 if actual_code_block is None or (not var in actual_code_block.param_names):
                     #check if it is an array
-                    array_item_count = re.search('\[ *([0-9]+) *\]', var)
+                    array_item_count = re.search(array_index, var)
                     if not array_item_count is None:
-                        out_line.append("%s = [%s()]*%s"%(var,type_name,array_item_count.groups()[0]))
+                        size = array_item_count.groups()[0]
+                        var = var.replace(size, '')
+                        out_line.append("%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
                         #[int()]*10
                         #[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                     else:

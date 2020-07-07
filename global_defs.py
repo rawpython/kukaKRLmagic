@@ -17,3 +17,28 @@ class generic_struct():
                 self.__dict__.update(args[0].__dict__)
     
 enum = generic_struct
+
+class multi_dimensional_array():
+    values = None
+    size = None
+    _type = None
+    
+    def __init__(size, _type):
+        self.size = size
+        self._type = _type
+        
+    def __getitem__(self, key):
+        #key is a tuple
+        # if accessed by my_multidimensional_array[1,1]
+        #   key=(1,1)
+        # if accessed by my_multidimensional_array[5,]
+        #   key=(5,) #the key is a tuple with len==1
+		return key #@todo should return values[key[0], key[1]]
+
+    """
+    def __setitem__(@todo):
+        pass
+    
+    def __delitem__(@todo):
+        pass
+    """
