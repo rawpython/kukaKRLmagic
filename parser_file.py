@@ -24,7 +24,7 @@ re_binary_number = "'b([0-1]+)'"
 
 re_variable_assignment = line_begin + _global + "(DECL +)?" + variable_name + " +" + variable_name + " *= *([^#]+)" + line_end
 array_index = r"(\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])"
-re_variable_decl = line_begin + _global + "(DECL +)?([^ =]+) +(([^ =]+"+array_index+"?)( *, *[^ =]+"+array_index+"?)*)" + line_end
+re_variable_decl = line_begin + _global + "(DECL +)?([^ =\(]+) +(([^ =\(]+"+array_index+"?)( *, *[^ =]+"+array_index+"?)*)" + line_end
 #re.search(re_variable_decl, "global decl e6POS potato[ 123], cip, ciop", re.IGNORECASE).groups()
 #('global ', 'decl ', 'e6POS', 'potato[ 123], cip, ciop', 'potato[ 123]', 'ciop')
 
@@ -206,7 +206,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if ",]" in code_line:
+        if ", 4002, 100, sickodv_MEAS_RANGE_FAR-(" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
