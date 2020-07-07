@@ -86,6 +86,13 @@ re_trigger_distance = line_begin + "when + distance *= *(0|1) +delay *= *" + int
 re_trigger_path = line_begin + "when + path *= *" + int_or_real_number + " +delay *= *" + int_or_real_number + " +do +(.+)" + line_end
 #trigger when path=0|1 <onstart> delay=10 do (assignment | function call)
 
+re_enum = line_begin + "ENUM +([^ ]+) +.*" + line_end
+#ENUM BAS_COMMAND INITMOV,ACC_CP,ACC_PTP,VEL_CP,VEL_PTP,ACC_GLUE,TOOL,BASE,EX_BASE,PTP_DAT,CP_DAT,OUT_SYNC,OUT_ASYNC,GROUP,FRAMES,PTP_PARAMS,CP_PARAMS
+#re.search(re_enum, "ENUM BAS_COMMAND INITMOV,ACC_CP,ACC_PTP,VEL_CP,VEL_PTP,ACC_GLUE,TOOL,BASE,EX_BASE,PTP_DAT,CP_DAT,OUT_SYNC,OUT_ASYNC,GROUP,FRAMES,PTP_PARAMS,CP_PARAMS").groups()
+#
+#('BAS_COMMAND',)
+
+
 #LIN
 re_lin = line_begin + "lin +(.+)" + line_end
 
@@ -143,7 +150,8 @@ instructions_defs = {
     'trigger path':         re_trigger_path,
     'variable assignment':  re_variable_assignment,
     'variable declaration': re_variable_decl,
-    'function call':        re_function_call
+    'function call':        re_function_call,
+    'enum':                 re_enum,
 }
 
 simple_instructions_to_replace = {
@@ -158,6 +166,7 @@ simple_instructions_to_replace = {
     'NOT':  'not',
     'AND':  'and',
     'OR':   'or',
+    '\[ *\]': '',
 }
 
 
@@ -236,28 +245,6 @@ def parse(filename_in, filename_out, write_mode):
                     field_and_value = code_line[fields_and_values.span()[0]+1:fields_and_values.span()[1]]
                     #replace the first occurrence of the found field, with the field replacing the first space occurrence with equal = sign 
                     code_line = code_line.replace(field_and_value, field_and_value.replace(' ', '=', 1), 1)
-                """
-                prepend = code_line[:code_line.index('(')+1]
-                params = code_line[code_line.index('(')+1:code_line.rindex(')')]
-                append = code_line[code_line.rindex(')')-1:]
-                params = params.split(",")
-                params_reworked = []
-                for param in params:
-                    reg = r"^ *([_\-\+\$a-zA-Z0-9]+) +"
-                    param = param.strip()
-                    items = re.search(reg, param)
-                    if items is None:
-                        params_reworked.append(param)
-                        continue
-                    items = items.groups()
-                    param_name = items[0]
-                    params_reworked.append(param.replace(param_name, param_name + " ="))
-                """
-                """
-                >>> re.search(r"\{ *([_\-\+\$a-zA-Z0-9]+) *:", "{E6POS: x 1, y 2 ,z 0, f { E6AXIS : a1 10, a2 1, a3 40 }}").groups()
-                ('E6POS',)
-                """
-                #code_line = prepend + ",".join(params_reworked) + append
 
 
 
@@ -447,9 +434,22 @@ def parse(filename_in, filename_out, write_mode):
             # class struc_name():
             #   var_name = type_name()
 
-            out_line = ["class %s():"%struc_name]
+            out_line = ["class %s(generic_structure):"%struc_name]
             out_line.extend(["    %s = %s()"%(k,v) for k,v in variables_names_with_types.items()])
         
+        if instruction_name == 'enum':
+            enum_name = result.groups()[0].strip()
+            elements = code_line.split(enum_name)[1]
+            element_list = elements.split(',')
+            i = 1
+            element_list_with_values = []
+            for elem in element_list:
+                elem = elem.strip()
+                element_list_with_values.append("%s=%s"%(elem, i))
+                i = i + 1
+            out_line = ['%s = enum(%s)'%(enum_name, ', '.join(element_list_with_values))]
+
+
         if not out_line is None:
             fout.writelines( ["    " * indent + x + '\n' for x in out_line] )
         indent = indent + indent_var
