@@ -52,3 +52,12 @@ def lin(_pos, _apo):
     #_pos : position
     #_apo : c_dis, c_ptp, c_ori
     pass
+
+
+def fake_func():
+    pass
+interrupt_flags = {}
+interrupts = {} #this contains function pointers to interrupt subprograms, these have to be called by thread
+for i in range(1, 129):
+    interrupt_flags[i] = False #activated by interrupt on
+    interrupts[i] = fake_func 

@@ -77,9 +77,12 @@ re_until = line_begin + "until +(.+)" + line_end
 re_loop = line_begin + "loop" + line_end
 re_endloop = line_begin + "endloop" + line_end
 
-re_interrupt_decl = line_begin + _global + "interrupt +decl +" + int_or_real_number + " +(.+) + do +(.+)" + line_end  
-re_interrupt_on = line_begin + "interrupt +on +" + int_or_real_number + line_end
-re_interrupt_off = line_begin + "interrupt +off +" + int_or_real_number + line_end
+#GLOBAL INTERRUPT DECL Prio WHEN Event DO Subprogram
+re_interrupt_decl = line_begin + _global + "INTERRUPT +DECL +" + int_or_real_number + " +WHEN +(.+) +DO +(.+)" + line_end 
+#re.search(re_interrupt_decl, "INTERRUPT decl 100 when potato == 1 do polpette", re.IGNORECASE).groups()
+#(None, '100', 'potato == 1', 'polpette')
+re_interrupt_on = line_begin + "INTERRUPT +ON +" + int_or_real_number + line_end
+re_interrupt_off = line_begin + "INTERRUPT +OFF +" + int_or_real_number + line_end
 
 re_trigger_distance = line_begin + "when + distance *= *(0|1) +delay *= *" + int_or_real_number + " +do +(.+)" + line_end
 #trigger when distance=0|1 delay=10 do (assignment or function call)
@@ -177,6 +180,12 @@ simple_instructions_to_replace = {
     '\[ *\]': '',
 }
 
+interrupt_declaration_template = """
+def %(interrupt_name)s():
+    if interrupt_flags[%(interrupt_number)s]:
+        if %(condition)s:
+            %(instruction)s
+interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
 
 class Procedure():
     name = ""
@@ -291,6 +300,20 @@ def parse(filename_in, filename_out, write_mode):
                 out_line = ["%s = signal(%s)"%(signal_name, signal_start)]
             else:
                 out_line = ["%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)]
+
+        if instruction_name == 'interrupt decl':
+            _global, interrupt_number, condition, instruction = result.groups()
+            _global = not _global is None 
+            interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
+            out_line = [*interrupt_declaration.split('\n')]
+            #out_line = ['interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
+
+        if instruction_name == 'interrupt on':
+            interrupt_number = result.groups()[0]
+            out_line = ['interrupt_flags[%s] = True'%interrupt_number]
+        if instruction_name == 'interrupt off':
+            interrupt_number = result.groups()[0]
+            out_line = ['interrupt_flags[%s] = False'%interrupt_number]
 
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
