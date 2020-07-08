@@ -91,7 +91,7 @@ re_trigger_distance = line_begin + "TRIGGER +WHEN +DISTANCE *= *(0|1) +DELAY *= 
 re_trigger_path = line_begin + "TRIGGER +WHEN +PATH *= *(.+) +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
 #trigger when path=0|1 <onstart> delay=10 do (assignment | function call)
 
-re_enum = line_begin + "ENUM +([^ ]+) +.*" + line_end
+re_enum = line_begin + _global + "ENUM +([^ ]+) +.*" + line_end
 #ENUM BAS_COMMAND INITMOV,ACC_CP,ACC_PTP,VEL_CP,VEL_PTP,ACC_GLUE,TOOL,BASE,EX_BASE,PTP_DAT,CP_DAT,OUT_SYNC,OUT_ASYNC,GROUP,FRAMES,PTP_PARAMS,CP_PARAMS
 #re.search(re_enum, "ENUM BAS_COMMAND INITMOV,ACC_CP,ACC_PTP,VEL_CP,VEL_PTP,ACC_GLUE,TOOL,BASE,EX_BASE,PTP_DAT,CP_DAT,OUT_SYNC,OUT_ASYNC,GROUP,FRAMES,PTP_PARAMS,CP_PARAMS").groups()
 #
@@ -183,8 +183,10 @@ instructions_defs = {
 }
 
 simple_instructions_to_replace = {
-    r'\$':  'system_vars.',
-    '#':    'system_constants.',
+    r'\$IN':  '$inputs',
+    r'\$OUT':  '$outputs',
+    r'\$':  'global_defs.',
+    '#':    '',
     ';':    '#',
     '<>':   '!=',
     'B_EXOR':  '^',
@@ -234,13 +236,15 @@ class Function(Procedure):
         self.return_type_name = return_type_name
 
 
-def parse(filename_in, filename_out, write_mode):
+def parse(filename_in, filename_out, write_mode, import_config=False):
     fin = open(filename_in, "r")
     lines = fin.readlines()
     fin.close()
 
     fout = open(filename_out, write_mode)
-    fout.write("from global_defs import *\n")
+    fout.write("import global_defs\nfrom global_defs import *\n")
+    if import_config:
+        fout.write("import config\nfrom config import *\n")
 
     code_block_dictionary = {}
     actual_code_block = None
@@ -327,12 +331,12 @@ def parse(filename_in, filename_out, write_mode):
             continue
 
         if instruction_name == 'signal decl':
-            _global, signal_name, signal_start, signal_end = result.groups()
-            _global = not _global is None
+            is_global, signal_name, signal_start, signal_end = result.groups()
+            is_global = not is_global is None
             if signal_end is None:
-                out_line = ["%s = signal(%s)"%(signal_name, signal_start)]
+                out_line = [("global_defs." if is_global else "") + "%s = signal(%s)"%(signal_name, signal_start)]
             else:
-                out_line = ["%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)]
+                out_line = [("global_defs." if is_global else "") + "%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)]
 
         if instruction_name == 'wait sec':
             t = result.groups()[0]
@@ -343,8 +347,8 @@ def parse(filename_in, filename_out, write_mode):
             out_line = ['while not (%s):time.sleep(0.1)'%condition]
 
         if instruction_name == 'interrupt decl':
-            _global, interrupt_number, condition, instruction = result.groups()
-            _global = not _global is None 
+            is_global, interrupt_number, condition, instruction = result.groups()
+            is_global = not is_global is None 
             interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
             out_line = [*interrupt_declaration.split('\n')]
             #out_line = ['interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
@@ -373,6 +377,7 @@ def parse(filename_in, filename_out, write_mode):
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             param_names = [x.split(':')[0].strip() for x in param_list]
+            is_global = not result.groups()[0] is None 
             procedure_name = result.groups()[2]
             out_line = ["def " + procedure_name + "(" + ", ".join(param_names) + "):"]
             indent_var = 1
@@ -385,6 +390,7 @@ def parse(filename_in, filename_out, write_mode):
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             param_names = [x.split(':')[0].strip() for x in param_list]
+            is_global = not result.groups()[0] is None 
             return_value_type_name = result.groups()[2]
             out_line = ["def " + result.groups()[3] + "(" + ", ".join(param_names) + "): #function returns %s"%return_value_type_name]
             indent_var = 1
@@ -507,11 +513,11 @@ def parse(filename_in, filename_out, write_mode):
                     if not array_item_count is None:
                         size = array_item_count.groups()[0]
                         var = var.replace(size, '')
-                        out_line.append("%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
+                        out_line.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
                         #[int()]*10
                         #[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                     else:
-                        out_line.append("%s = %s()"%(var,type_name))
+                        out_line.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
                 else:
                     #if the variable decl is a function parameter it have to be not declared again
                     # and we discard also an end of line comment
@@ -550,11 +556,14 @@ def parse(filename_in, filename_out, write_mode):
             # class struc_name():
             #   var_name = type_name()
 
-            out_line = ["class %s(generic_structure):"%struc_name]
+            out_line = ["class %s(generic_struct):"%struc_name]
             out_line.extend(["    %s = %s()"%(k,v) for k,v in variables_names_with_types.items()])
+            if is_global:
+                out_line.append("global_defs.%s = %s"%(struc_name, struc_name))
         
         if instruction_name == 'enum':
-            enum_name = result.groups()[0].strip()
+            is_global = not result.groups()[0] is None 
+            enum_name = result.groups()[1].strip()
             elements = code_line.split(enum_name)[1]
             element_list = elements.split(',')
             i = 1
@@ -563,7 +572,8 @@ def parse(filename_in, filename_out, write_mode):
                 elem = elem.strip()
                 element_list_with_values.append("%s=%s"%(elem, i))
                 i = i + 1
-            out_line = ['%s = enum(%s)'%(enum_name, ', '.join(element_list_with_values))]
+            out_line = ['%s = enum(%s, %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', ', '.join(element_list_with_values))]
+            
 
 
         if not out_line is None and len(out_line)>0:

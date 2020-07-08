@@ -23,10 +23,22 @@ run_fast_scandir(os.path.dirname(os.path.abspath(__file__)), dirs, files, [".jpg
 #print(dirs)
 print(files)
 
-#parse $config.dat e produrre il globals.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
-parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/system_vars.py", "w+")
-parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+")
-parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "a+")
+#parse $config.dat e produrre il config.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
+parser_file.parse(files['basics.dat'], os.path.dirname(os.path.abspath(__file__)) + "/basics_dat.py", "w+", import_config=False)
+parser_file.parse(files['$machine.dat'], os.path.dirname(os.path.abspath(__file__)) + "/machine_dat.py", "w+", import_config=False)
+parser_file.parse(files['$robcor.dat'], os.path.dirname(os.path.abspath(__file__)) + "/robcor_dat.py", "w+", import_config=False)
+parser_file.parse(files['p00.dat'], os.path.dirname(os.path.abspath(__file__)) + "/p00_dat.py", "w+", import_config=True)
+parser_file.parse(files['p00.src'], os.path.dirname(os.path.abspath(__file__)) + "/p00.py", "w+", import_config=True)
+
+parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/config.py", "w+", import_config=False)
+parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000_dat.py", "w+", import_config=True)
+parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+", import_config=True)
+
+import basics_dat
+from sds7000_dat import *
+import sds7000
+sds7000.sds7000()
+
 #parse modulename.dat
 #parse modulename.src
 #parse sps.sub
