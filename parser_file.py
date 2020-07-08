@@ -121,7 +121,7 @@ re_dat_begin = line_begin + """(DEFDAT +)""" + dat_name + "( +PUBLIC)?" + line_e
 re_dat_end = line_begin + "ENDDAT" + line_end
 
 #SIGNAL Signal_Name Interface_Name <TO Interface_Name>
-re_signal = line_begin + r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?" + line_end 
+re_signal = line_begin + _global + r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?" + line_end 
 #re.search(r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?", "signal potato $in[ 12]   to $in[34]", re.IGNORECASE).groups()
 #('potato', '$in[ 12]', '$in[34]')
 
@@ -195,6 +195,7 @@ simple_instructions_to_replace = {
     'AND':  'and',
     'OR':   'or',
     '\[ *\]': '',
+    '\t':   ' ',
 }
 
 interrupt_declaration_template = """
@@ -251,13 +252,23 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "TOOL_NAME[" in code_line:
+        if "profileplcword0" in code_line.lower():
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
         code_line = code_line.strip()
         #since KRL is case insensitive, and Python is case sensitive, the code is transformed to lower making it all the variable names equal in the code
         code_line = code_line.lower()
+
+        #common keywords are replaced as per Python spelling, i.e. TRUE becomes True
+        for k,v in simple_instructions_to_replace.items():
+            code_line = re.sub(k, v, code_line, flags=re.IGNORECASE)
+        
+        #this should remove end of line comment
+        endofline_comment_to_append = re.search(line_end, code_line).span()
+        endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]]
+        code_line = code_line.replace(endofline_comment_to_append, "")
+
 
         #replace binary numbers
         result = re.search(re_binary_number,code_line)
@@ -293,14 +304,6 @@ def parse(filename_in, filename_out, write_mode):
                     #replace the first occurrence of the found field, with the field replacing the first space occurrence with equal = sign 
                     code_line = code_line.replace(field_and_value, field_and_value.replace(' ', '=', 1), 1)
 
-        #common keywords are replaced as per Python spelling, i.e. TRUE becomes True
-        for k,v in simple_instructions_to_replace.items():
-            code_line = re.sub(k, v, code_line, flags=re.IGNORECASE)
-        
-        #this should remove end of line comment
-        endofline_comment_to_append = re.search(line_end, code_line).span()
-        endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]]
-        code_line = code_line.replace(endofline_comment_to_append, "")
 
         out_line = [code_line]
         indent_var = 0
@@ -324,7 +327,8 @@ def parse(filename_in, filename_out, write_mode):
             continue
 
         if instruction_name == 'signal decl':
-            signal_name, signal_start, signal_end = result.groups()
+            _global, signal_name, signal_start, signal_end = result.groups()
+            _global = not _global is None
             if signal_end is None:
                 out_line = ["%s = signal(%s)"%(signal_name, signal_start)]
             else:

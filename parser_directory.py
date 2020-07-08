@@ -25,7 +25,8 @@ print(files)
 
 #parse $config.dat e produrre il globals.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
 parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/system_vars.py", "w+")
-parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+")
+parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+")
+parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "a+")
 #parse modulename.dat
 #parse modulename.src
 #parse sps.sub
