@@ -87,7 +87,8 @@ re_interrupt_off = line_begin + "INTERRUPT +OFF +" + int_or_real_number + line_e
 re_trigger_distance = line_begin + "TRIGGER +WHEN +DISTANCE *= *(0|1) +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
 #trigger when distance=0|1 delay=10 do (assignment or function call)
 
-re_trigger_path = line_begin + "TRIGGER +WHEN +PATH *= *" + int_or_real_number + " +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
+#TRIGGER WHEN PATH=-TRIGGER_MARK_POSITION DELAY=0 DO PULSE(O_START_MARK, TRUE, 7.0)
+re_trigger_path = line_begin + "TRIGGER +WHEN +PATH *= *(.+) +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
 #trigger when path=0|1 <onstart> delay=10 do (assignment | function call)
 
 re_enum = line_begin + "ENUM +([^ ]+) +.*" + line_end
@@ -130,7 +131,14 @@ re_wait_sec = line_begin + "WAIT +SEC +" + int_or_real_number + line_end
 #wait for
 re_wait_for = line_begin + "WAIT +FOR +" + "([^#]+)" + line_end
 
-#ext funcname(params)
+#EXT Program_Source(Parameter_List )
+#to be import Program_Source.Program_Source as Program_Source
+re_ext = line_begin + "EXT +([^ \(]+) *\("
+
+#EXTFCT Data_Type Program_Source(Parameter_List )
+#to be import Program_Source.Program_Source as Program_Source
+re_extfct = line_begin + "EXTFCT +([^ ]+) +([^ \(]+) *\("
+
 
 instructions_defs = {
     'meta instruction':     re_meta,
@@ -170,6 +178,8 @@ instructions_defs = {
     'signal decl':          re_signal,
     'wait sec':             re_wait_sec,
     'wait for':             re_wait_for,
+    'ext':                  re_ext,
+    'extfct':               re_extfct,
 }
 
 simple_instructions_to_replace = {
@@ -196,7 +206,12 @@ interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
 
 trigger_distance_declaration_template = """
 def %(trigger_name)s():
-    #delay have to be managed by a calling timer
+    %(instruction)s
+threading.Timer(%(delay)s, %(trigger_name)s).start()"""
+
+trigger_path_declaration_template = """
+#this should be scheduled at path=%(path)s, to be implemented
+def %(trigger_name)s():
     %(instruction)s
 threading.Timer(%(delay)s, %(trigger_name)s).start()"""
 
@@ -236,7 +251,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "P_SCAN_HEAD_START = {X -350" in code_line:
+        if " PATH=" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -345,8 +360,11 @@ def parse(filename_in, filename_out, write_mode):
             
             
         if instruction_name == 'trigger path':
-            g = result.groups()
-            g = result.groups()
+            path, delay, instruction = result.groups()
+            trigger_func_name = 'trigger_func%s'%uuid
+            uuid = uuid + 1
+            trigger_declaration = trigger_path_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay, 'path':path}
+            out_line = [*trigger_declaration.split('\n')]
 
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
@@ -379,6 +397,14 @@ def parse(filename_in, filename_out, write_mode):
         if instruction_name == 'function return':
             value = result.groups()[0]
             out_line = ["return" if value is None else ("return " + value)]
+
+        if instruction_name == 'ext':
+            procedure_name = result.groups()[0]
+            out_line = ["from %s import %s"%(procedure_name,procedure_name)]
+
+        if instruction_name == 'extfct':
+            return_type, function_name = result.groups()
+            out_line = ["from %s import %s"%(function_name,function_name)]
 
         if instruction_name == 'if begin':
             """
