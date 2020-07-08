@@ -251,7 +251,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if " PATH=" in code_line:
+        if "TOOL_NAME[" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -491,7 +491,7 @@ def parse(filename_in, filename_out, write_mode):
             is_global = not result.groups()[0] is None 
             type_name = result.groups()[2]
             variables_names = code_line.split(type_name, maxsplit=1)[1] #result.groups()[3].split(',')
-            variables_names = re.split(r"[^\[] *,", variables_names) #split with a comma not inside an index definition [,]
+            variables_names = re.split(r" *, *[^\][0-9]]", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
             out_line = []
             for var in variables_names:
