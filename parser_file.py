@@ -116,6 +116,12 @@ dat_name = variable_name
 re_dat_begin = line_begin + """(DEFDAT +)""" + dat_name + "( +PUBLIC)?" + line_end
 re_dat_end = line_begin + "ENDDAT" + line_end
 
+#SIGNAL Signal_Name Interface_Name <TO Interface_Name>
+re_signal = line_begin + r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?" + line_end 
+#re.search(r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?", "signal potato $in[ 12]   to $in[34]", re.IGNORECASE).groups()
+#('potato', '$in[ 12]', '$in[34]')
+
+
 #ext funcname(params)
 
 instructions_defs = {
@@ -153,6 +159,7 @@ instructions_defs = {
     'variable declaration': re_variable_decl,
     'function call':        re_function_call,
     'enum':                 re_enum,
+    'signal decl':          re_signal,
 }
 
 simple_instructions_to_replace = {
@@ -206,7 +213,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "REAL TRIGGER_ON_POSITION, TRIGGER_OFF_POSITION" in code_line:
+        if "P_SCAN_HEAD_START = {X -350" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -240,10 +247,11 @@ def parse(filename_in, filename_out, write_mode):
                 code_line = code_line.replace('{', 'generic_struct(')
                 #putting = after field name
                 while True:
-                    fields_and_values = re.search('[:\(\{\=,)]{1}([^:,\(\{="\)\} ]+) ([^\)=\},; ]+)', code_line)
+                    fields_and_values = re.search('[:\(\{\=,)]{1} *([^:,\(\{="\)\} ]+) ([^\)=\},; ]+)', code_line)
                     if fields_and_values is None:
                         break
                     field_and_value = code_line[fields_and_values.span()[0]+1:fields_and_values.span()[1]]
+                    field_and_value = field_and_value.strip()
                     #replace the first occurrence of the found field, with the field replacing the first space occurrence with equal = sign 
                     code_line = code_line.replace(field_and_value, field_and_value.replace(' ', '=', 1), 1)
 
@@ -276,6 +284,13 @@ def parse(filename_in, filename_out, write_mode):
 
         if instruction_name == 'dat end':
             continue
+
+        if instruction_name == 'signal decl':
+            signal_name, signal_start, signal_end = result.groups()
+            if signal_end is None:
+                out_line = ["%s = signal(%s)"%(signal_name, signal_start)]
+            else:
+                out_line = ["%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)]
 
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
@@ -363,18 +378,21 @@ def parse(filename_in, filename_out, write_mode):
             position = result.groups()[0].strip().lower()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
+            position = position.replace(" c_ori", ", c_ori")
             out_line = ["lin(%s)"%position]
 
         if instruction_name == 'ptp':
             position = result.groups()[0].strip().lower()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
+            position = position.replace(" c_ori", ", c_ori")
             out_line = ["ptp(%s)"%position]
 
         if instruction_name == 'circ':
             position = result.groups()[0].strip().lower()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
+            position = position.replace(" c_ori", ", c_ori")
             out_line = ["circ(%s)"%position]
 
         #it is required to parse variable declaration
@@ -400,8 +418,6 @@ def parse(filename_in, filename_out, write_mode):
                     #check if it is an array
                     array_item_count = re.search(array_index, var)
                     #just for debugging breakpoint
-                    if len(endofline_comment_to_append) > 0:
-                        print("")
                     if not array_item_count is None:
                         size = array_item_count.groups()[0]
                         var = var.replace(size, '')

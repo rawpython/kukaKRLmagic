@@ -42,3 +42,13 @@ class multi_dimensional_array():
     def __delitem__(@todo):
         pass
     """
+
+def ptp(_pos, _apo):
+    #_pos : position
+    #_apo : c_dis, c_ptp, c_ori
+    pass
+
+def lin(_pos, _apo):
+    #_pos : position
+    #_apo : c_dis, c_ptp, c_ori
+    pass
