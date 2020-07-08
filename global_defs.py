@@ -61,3 +61,9 @@ interrupts = {} #this contains function pointers to interrupt subprograms, these
 for i in range(1, 129):
     interrupt_flags[i] = False #activated by interrupt on
     interrupts[i] = fake_func 
+
+timer = {}
+timer_stop = {}
+for i in range(1, 129):
+    timer_stop[i] = True #activated by interrupt on
+    timer[i] = 0 

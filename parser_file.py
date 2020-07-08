@@ -84,10 +84,10 @@ re_interrupt_decl = line_begin + _global + "INTERRUPT +DECL +" + int_or_real_num
 re_interrupt_on = line_begin + "INTERRUPT +ON +" + int_or_real_number + line_end
 re_interrupt_off = line_begin + "INTERRUPT +OFF +" + int_or_real_number + line_end
 
-re_trigger_distance = line_begin + "when + distance *= *(0|1) +delay *= *" + int_or_real_number + " +do +(.+)" + line_end
+re_trigger_distance = line_begin + "TRIGGER +WHEN +DISTANCE *= *(0|1) +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
 #trigger when distance=0|1 delay=10 do (assignment or function call)
 
-re_trigger_path = line_begin + "when + path *= *" + int_or_real_number + " +delay *= *" + int_or_real_number + " +do +(.+)" + line_end
+re_trigger_path = line_begin + "TRIGGER +WHEN +PATH *= *" + int_or_real_number + " +DELAY *= *" + int_or_real_number + " +DO +(.+)" + line_end
 #trigger when path=0|1 <onstart> delay=10 do (assignment | function call)
 
 re_enum = line_begin + "ENUM +([^ ]+) +.*" + line_end
@@ -124,6 +124,11 @@ re_signal = line_begin + r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: 
 #re.search(r"SIGNAL +([^ ]+) +((?:[^ \[]+)(?:\[ *[0-9]* *\])?)(?: +TO +((?:[^ \[]+)(?:\[ *[0-9]* *\])?))?", "signal potato $in[ 12]   to $in[34]", re.IGNORECASE).groups()
 #('potato', '$in[ 12]', '$in[34]')
 
+#wait sec
+re_wait_sec = line_begin + "WAIT +SEC +" + int_or_real_number + line_end
+
+#wait for
+re_wait_for = line_begin + "WAIT +FOR +" + "([^#]+)" + line_end
 
 #ext funcname(params)
 
@@ -163,6 +168,8 @@ instructions_defs = {
     'function call':        re_function_call,
     'enum':                 re_enum,
     'signal decl':          re_signal,
+    'wait sec':             re_wait_sec,
+    'wait for':             re_wait_for,
 }
 
 simple_instructions_to_replace = {
@@ -186,6 +193,12 @@ def %(interrupt_name)s():
         if %(condition)s:
             %(instruction)s
 interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
+
+trigger_distance_declaration_template = """
+def %(trigger_name)s():
+    #delay have to be managed by a calling timer
+    %(instruction)s
+threading.Timer(%(delay)s, %(trigger_name)s).start()"""
 
 class Procedure():
     name = ""
@@ -219,6 +232,7 @@ def parse(filename_in, filename_out, write_mode):
     indent = 0
     indent_var = 0
     out_line = []
+    uuid = 0 #a unique number to be incremented when used
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
@@ -301,19 +315,38 @@ def parse(filename_in, filename_out, write_mode):
             else:
                 out_line = ["%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)]
 
+        if instruction_name == 'wait sec':
+            t = result.groups()[0]
+            out_line = ['time.sleep(%s)'%t]
+
+        if instruction_name == 'wait for':
+            condition = result.groups()[0]
+            out_line = ['while not (%s):time.sleep(0.1)'%condition]
+
         if instruction_name == 'interrupt decl':
             _global, interrupt_number, condition, instruction = result.groups()
             _global = not _global is None 
             interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
             out_line = [*interrupt_declaration.split('\n')]
             #out_line = ['interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
-
         if instruction_name == 'interrupt on':
             interrupt_number = result.groups()[0]
             out_line = ['interrupt_flags[%s] = True'%interrupt_number]
         if instruction_name == 'interrupt off':
             interrupt_number = result.groups()[0]
             out_line = ['interrupt_flags[%s] = False'%interrupt_number]
+
+        if instruction_name == 'trigger distance':
+            distance, delay, instruction = result.groups()
+            trigger_func_name = 'trigger_func%s'%uuid
+            uuid = uuid + 1
+            trigger_declaration = trigger_distance_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay}
+            out_line = [*trigger_declaration.split('\n')]
+            
+            
+        if instruction_name == 'trigger path':
+            g = result.groups()
+            g = result.groups()
 
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
