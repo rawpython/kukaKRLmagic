@@ -206,7 +206,7 @@ def parse(filename_in, filename_out, write_mode):
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if ", 4002, 100, sickodv_MEAS_RANGE_FAR-(" in code_line:
+        if "REAL TRIGGER_ON_POSITION, TRIGGER_OFF_POSITION" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -247,11 +247,15 @@ def parse(filename_in, filename_out, write_mode):
                     #replace the first occurrence of the found field, with the field replacing the first space occurrence with equal = sign 
                     code_line = code_line.replace(field_and_value, field_and_value.replace(' ', '=', 1), 1)
 
-
-
         #common keywords are replaced as per Python spelling, i.e. TRUE becomes True
         for k,v in simple_instructions_to_replace.items():
             code_line = re.sub(k, v, code_line, flags=re.IGNORECASE)
+        
+        #this should remove end of line comment
+        endofline_comment_to_append = re.search(line_end, code_line).span()
+        endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]]
+        code_line = code_line.replace(endofline_comment_to_append, "")
+
         out_line = [code_line]
         indent_var = 0
 
@@ -387,7 +391,7 @@ def parse(filename_in, filename_out, write_mode):
             is_global = not result.groups()[0] is None 
             type_name = result.groups()[2]
             variables_names = code_line.split(type_name, maxsplit=1)[1] #result.groups()[3].split(',')
-            variables_names = re.split(r"[^\[]] *,", variables_names) #split with a comma not inside an index definition [,]
+            variables_names = re.split(r"[^\[] *,", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
             out_line = []
             for var in variables_names:
@@ -395,6 +399,9 @@ def parse(filename_in, filename_out, write_mode):
                 if actual_code_block is None or (not var in actual_code_block.param_names):
                     #check if it is an array
                     array_item_count = re.search(array_index, var)
+                    #just for debugging breakpoint
+                    if len(endofline_comment_to_append) > 0:
+                        print("")
                     if not array_item_count is None:
                         size = array_item_count.groups()[0]
                         var = var.replace(size, '')
@@ -403,6 +410,10 @@ def parse(filename_in, filename_out, write_mode):
                         #[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                     else:
                         out_line.append("%s = %s()"%(var,type_name))
+                else:
+                    #if the variable decl is a function parameter it have to be not declared again
+                    # and we discard also an end of line comment
+                    endofline_comment_to_append = ""
 
         if instruction_name == 'variable assignment':
             elements = result.groups()
@@ -418,8 +429,6 @@ def parse(filename_in, filename_out, write_mode):
             """
             is_global = not result.groups()[0] is None 
             struc_name = result.groups()[2]
-            #this should remove end of line comment
-            code_line = re.sub(line_end, "", code_line)
             variables_names = code_line.split(struc_name)[1]
             variables_names = [x.strip() for x in variables_names.split(',')]
             variables_names_with_types = {}
@@ -455,8 +464,12 @@ def parse(filename_in, filename_out, write_mode):
             out_line = ['%s = enum(%s)'%(enum_name, ', '.join(element_list_with_values))]
 
 
-        if not out_line is None:
+        if not out_line is None and len(out_line)>0:
+            out_line[0] = out_line[0] + endofline_comment_to_append
             fout.writelines( ["    " * indent + x + '\n' for x in out_line] )
+        else:
+            if len(endofline_comment_to_append)>0:
+                fout.write(endofline_comment_to_append + '\n')
         indent = indent + indent_var
 
     fout.close()
