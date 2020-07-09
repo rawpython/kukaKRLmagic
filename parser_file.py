@@ -24,6 +24,7 @@ re_binary_number = "'b([0-1]+)'"
 
 re_variable_assignment = line_begin + _global + "(DECL +)?" + variable_name + " +" + variable_name + " *= *([^#]+)" + line_end
 array_index = r"(\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])"
+array_empty_index = r"(\[ *(?:, *){0,2}\])"
 re_variable_decl = line_begin + _global + "(DECL +)?([^ =\(]+) +(([^ =\(]+"+array_index+"?)( *, *[^ =]+"+array_index+"?)*)" + line_end
 #re.search(re_variable_decl, "global decl e6POS potato[ 123], cip, ciop", re.IGNORECASE).groups()
 #('global ', 'decl ', 'e6POS', 'potato[ 123], cip, ciop', 'potato[ 123]', 'ciop')
@@ -214,6 +215,7 @@ simple_instructions_to_replace = {
     'class':'_class', #found in operate.dat
     'sys':'_sys', #used somewhere. replacing to not be confused with python module _sys
     ', *,':   ', None,', #KRL syntax null parameters in function calls
+    r'NOT *\(': 'global_def._not(', #KRL bit complement NOT(VALUE)
 }
 
 interrupt_declaration_template = """
@@ -272,12 +274,12 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
     out_line = []
     uuid = 0 #a unique number to be incremented when used
     pass_to_be_added = False #it indicates if a pass instruction have to be added to empty procedures or functions
-    switch_value = None #takes mem of the switch value actually in process
+    switch_value_list = list() #takes mem of the switch value actually in process
 
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "FOR counter = 1 TO 10 STEP 1" in code_line:
+        if "DEF SORT_CIRCS(CIRCS[]:OUT, NC" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -356,7 +358,8 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
                     break
             out_line = [code_line]
 
-        if not (instruction_name in ('procedure end', 'function end', 'case', '')):
+
+        if not (instruction_name in ('procedure end', 'function end', '', 'case', 'default', 'else', 'endif', 'variable declaration')):
             pass_to_be_added = False
 
         if instruction_name == 'meta instruction':
@@ -479,17 +482,25 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             condition = result.groups()[0].strip()
             out_line = ["if " + condition + ":"]
             indent_var = 1
+            pass_to_be_added = True
         if instruction_name == 'else':
+            out_line = []
+            if pass_to_be_added:
+                out_line = ['    pass']
             indent = indent - 1
-            out_line = ["else:"]
+            out_line.append("else:")
             indent_var = 1
+            pass_to_be_added = True
         if instruction_name == 'if end':
             out_line = None
+            if pass_to_be_added:
+                out_line = ['    pass']
             indent_var = -1
+            pass_to_be_added = False
 
 
         if instruction_name == 'switch':
-            switch_value = result.groups()[0]
+            switch_value_list.append(result.groups()[0])
             out_line = None
             first_switch_instruction = True
         if instruction_name == 'case':
@@ -497,11 +508,17 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             if pass_to_be_added:
                 out_line = ['    pass']
             case_value = result.groups()[0]
+
+            condition = "%s == %s:"%(switch_value_list[len(switch_value_list)-1], case_value)
+            if ',' in case_value:
+                case_values = case_value.split(',')
+                condition = ' or '.join(['%s == %s'%(switch_value_list[len(switch_value_list)-1], x) for x in case_values]) + ':'
+
             if first_switch_instruction:
-                out_line.append("if %s == %s:"%(switch_value, case_value))
+                out_line.append("if " + condition)
             else:
                 indent = indent - 1
-                out_line.append("elif %s == %s:"%(switch_value, case_value))
+                out_line.append("elif " + condition)
             indent_var = indent_var + 1
             first_switch_instruction = False
             pass_to_be_added = True
@@ -513,7 +530,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             out_line.append("else:")
             indent_var = indent_var + 1
         if instruction_name == 'endswitch':
-            switch_value = None
+            switch_value_list.pop()
             out_line = None
             indent_var = -1
             pass_to_be_added = False
@@ -593,7 +610,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             out_line = []
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
-                if actual_code_block is None or (not var in actual_code_block.param_names):
+                if actual_code_block is None or (not re.sub(array_index, '', var) in actual_code_block.param_names):
                     #check if it is an array
                     array_item_count = re.search(array_index, var)
                     #just for debugging breakpoint
@@ -676,12 +693,18 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
 
 
         if not out_line is None and len(out_line)>0:
+            if '[,]' in out_line[0]:
+                out_line[0] = re.sub('\[,\]', '[:]', out_line[0])
+
             out_line[0] = out_line[0] + endofline_comment_to_append
             fout.writelines( ["    " * indent + x + '\n' for x in out_line] )
         else:
             if len(endofline_comment_to_append)>0:
                 fout.write(endofline_comment_to_append + '\n')
         indent = indent + indent_var
+
+    if pass_to_be_added:
+        fout.write("    " * indent + 'pass\n')
 
     fout.close()
 

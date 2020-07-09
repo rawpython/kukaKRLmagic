@@ -30,16 +30,20 @@ parser_file.parse(files['$machine.dat'], os.path.dirname(os.path.abspath(__file_
 parser_file.parse(files['$robcor.dat'], os.path.dirname(os.path.abspath(__file__)) + "/robcor_dat.py", "w+", import_config=False, import_operate=False)
 parser_file.parse(files['p00.dat'], os.path.dirname(os.path.abspath(__file__)) + "/p00_dat.py", "w+", import_config=True, import_operate=True)
 parser_file.parse(files['p00.src'], os.path.dirname(os.path.abspath(__file__)) + "/p00.py", "w+", import_config=True, import_operate=True)
+parser_file.parse(files['p00_subm.src'], os.path.dirname(os.path.abspath(__file__)) + "/p00_subm.py", "w+", import_config=True, import_operate=True)
 
 parser_file.parse(files['bas.src'], os.path.dirname(os.path.abspath(__file__)) + "/bas.py", "w+", import_config=False, import_operate=True)
 parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/config.py", "w+", import_config=False, import_operate=True)
 parser_file.parse(files['ir_stopm.src'], os.path.dirname(os.path.abspath(__file__)) + "/ir_stopm.py", "w+", import_config=False, import_operate=True)
+parser_file.parse(files['geometrylib.dat'], os.path.dirname(os.path.abspath(__file__)) + "/geometrylib.py", "w+", import_config=True, import_operate=True)
+parser_file.parse(files['geometrylib.src'], os.path.dirname(os.path.abspath(__file__)) + "/geometrylib.py", "a+", import_config=True, import_operate=True)
 parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000_dat.py", "w+", import_config=True, import_operate=True)
 parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+", import_config=True, import_operate=True)
 
 import kuka_internals
 import operate_dat
 from operate_dat import *
+import geometrylib
 from sds7000_dat import *
 import bas
 import sds7000

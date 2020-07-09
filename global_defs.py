@@ -9,6 +9,11 @@ _dollar_ACC = {'CP':0}
 real = float
 char = str
 
+def _not(value):
+    if type(value) is bool:
+        return not value
+    return ~value
+
 class generic_struct():
     def __init__(self, *args, **kwargs):
         self.__dict__.update(kwargs)
@@ -30,10 +35,14 @@ class multi_dimensional_array():
     values = None
     size = None
     _type = None
-    
-    def __init__(self, size, _type):
+    data = None
+
+    def __init__(self, _type, size):
         self.size = size
         self._type = _type
+        self.data = [_type]
+        for s in size:
+            self.data = self.data * s
         
     def __getitem__(self, key):
         #key is a tuple
@@ -41,15 +50,29 @@ class multi_dimensional_array():
         #   key=(1,1)
         # if accessed by my_multidimensional_array[5,]
         #   key=(5,) #the key is a tuple with len==1
-        return key #@todo should return values[key[0], key[1]]
+        if type(key) == int:
+            return self.data[key-1]
 
-    """
-    def __setitem__(@todo):
+        value = self.data
+        for i in key:
+            value = value[i]
+        return value
+
+    def __setitem__(self, key, value):
+        if type(key) == int:
+            self.data[key-1] = value
+            return
+
+        if len(key) == 1:
+            self.data[key[0]] = value
+        if len(key) == 2:
+            self.data[key[0]][key[1]] = value
+        if len(key) == 3:
+            self.data[key[0]][key[1]][key[2]] = value
+
+    def __delitem__(key):
         pass
     
-    def __delitem__(@todo):
-        pass
-    """
 
 def _geometric_addition_operator(left_operant, right_operand):
     return
