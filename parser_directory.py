@@ -24,18 +24,23 @@ run_fast_scandir(os.path.dirname(os.path.abspath(__file__)), dirs, files, [".jpg
 print(files)
 
 #parse $config.dat e produrre il config.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
-parser_file.parse(files['basics.dat'], os.path.dirname(os.path.abspath(__file__)) + "/basics_dat.py", "w+", import_config=False)
-parser_file.parse(files['$machine.dat'], os.path.dirname(os.path.abspath(__file__)) + "/machine_dat.py", "w+", import_config=False)
-parser_file.parse(files['$robcor.dat'], os.path.dirname(os.path.abspath(__file__)) + "/robcor_dat.py", "w+", import_config=False)
-parser_file.parse(files['p00.dat'], os.path.dirname(os.path.abspath(__file__)) + "/p00_dat.py", "w+", import_config=True)
-parser_file.parse(files['p00.src'], os.path.dirname(os.path.abspath(__file__)) + "/p00.py", "w+", import_config=True)
+parser_file.parse(files['kuka_internals.dat'], os.path.dirname(os.path.abspath(__file__)) + "/kuka_internals.py", "w+", import_config=False, import_operate=False)
+parser_file.parse(files['operate.dat'], os.path.dirname(os.path.abspath(__file__)) + "/operate_dat.py", "w+", import_config=False, import_operate=False)
+parser_file.parse(files['$machine.dat'], os.path.dirname(os.path.abspath(__file__)) + "/machine_dat.py", "w+", import_config=False, import_operate=False)
+parser_file.parse(files['$robcor.dat'], os.path.dirname(os.path.abspath(__file__)) + "/robcor_dat.py", "w+", import_config=False, import_operate=False)
+parser_file.parse(files['p00.dat'], os.path.dirname(os.path.abspath(__file__)) + "/p00_dat.py", "w+", import_config=True, import_operate=True)
+parser_file.parse(files['p00.src'], os.path.dirname(os.path.abspath(__file__)) + "/p00.py", "w+", import_config=True, import_operate=True)
 
-parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/config.py", "w+", import_config=False)
-parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000_dat.py", "w+", import_config=True)
-parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+", import_config=True)
+parser_file.parse(files['bas.src'], os.path.dirname(os.path.abspath(__file__)) + "/bas.py", "w+", import_config=False, import_operate=True)
+parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/config.py", "w+", import_config=False, import_operate=True)
+parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000_dat.py", "w+", import_config=True, import_operate=True)
+parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+", import_config=True, import_operate=True)
 
-import basics_dat
+import kuka_internals
+import operate_dat
+from operate_dat import *
 from sds7000_dat import *
+import bas
 import sds7000
 sds7000.sds7000()
 

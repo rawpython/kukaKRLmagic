@@ -1,2 +1,0 @@
-;https://openkuka.github.io/krl/reference/system.types/
-GLOBAL ENUM CIRC_TYPE BASE, PATH

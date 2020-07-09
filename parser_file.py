@@ -8,7 +8,7 @@ re_meta = r"""(?:^ *\&)"""
 line_begin = r"""(?:^ *)"""
 line_end = r"""(?: *#+.*)?$"""    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
 re_comment = line_begin + line_end
-variable_name = r"""([\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*(?:\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])?)"""
+variable_name = r"""([\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *(?:\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])?)"""
 type_name = r"""([a-z_A-Z]{1}[a-z_A-Z0-9]*)"""
 int_or_real_number = r"""((?:\+|-)?[0-9]+(?:\.[0-9]+)?)"""
 string = r"""(".*")"""
@@ -133,11 +133,11 @@ re_wait_for = line_begin + "WAIT +FOR +" + "([^#]+)" + line_end
 
 #EXT Program_Source(Parameter_List )
 #to be import Program_Source.Program_Source as Program_Source
-re_ext = line_begin + "EXT +([^ \(]+) *\("
+re_ext = line_begin + "EXTP? +([^ \(]+) *\("
 
 #EXTFCT Data_Type Program_Source(Parameter_List )
 #to be import Program_Source.Program_Source as Program_Source
-re_extfct = line_begin + "EXTFCT +([^ ]+) +([^ \(]+) *\("
+re_extfct = line_begin + "EXTFCTP? +([^ ]+) +([^ \(]+) *\("
 
 
 instructions_defs = {
@@ -198,6 +198,9 @@ simple_instructions_to_replace = {
     'OR':   'or',
     '\[ *\]': '',
     '\t':   ' ',
+    'async':'_async', #found in operate.dat
+    'class':'_class', #found in operate.dat
+    'sys':'_sys', #used somewhere. replacing to not be confused with python module _sys
 }
 
 interrupt_declaration_template = """
@@ -236,7 +239,7 @@ class Function(Procedure):
         self.return_type_name = return_type_name
 
 
-def parse(filename_in, filename_out, write_mode, import_config=False):
+def parse(filename_in, filename_out, write_mode, import_config=False, import_operate=False):
     fin = open(filename_in, "r")
     lines = fin.readlines()
     fin.close()
@@ -245,6 +248,8 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
     fout.write("import global_defs\nfrom global_defs import *\n")
     if import_config:
         fout.write("import config\nfrom config import *\n")
+    if import_operate:
+        fout.write("import operate_dat\nfrom operate_dat import *\n")
 
     code_block_dictionary = {}
     actual_code_block = None
@@ -253,10 +258,11 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
     indent_var = 0
     out_line = []
     uuid = 0 #a unique number to be incremented when used
+    pass_to_be_added = False
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "profileplcword0" in code_line.lower():
+        if "EFFCT  INT INTERIMENERGY(CHAR STRVA" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -321,6 +327,9 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
                     instruction_name = k
                     break
 
+        if not (instruction_name in ('procedure end', 'function end')):
+            pass_to_be_added = False
+
         if instruction_name == 'meta instruction':
             continue
         
@@ -377,19 +386,22 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             param_names = [x.split(':')[0].strip() for x in param_list]
+            param_names = [re.sub(array_index, '', x) for x in param_names]
             is_global = not result.groups()[0] is None 
             procedure_name = result.groups()[2]
             out_line = ["def " + procedure_name + "(" + ", ".join(param_names) + "):"]
             indent_var = 1
             actual_code_block = Procedure(procedure_name, param_names, [], [])
             code_block_dictionary[procedure_name] = actual_code_block
+            pass_to_be_added = True
         if instruction_name == 'procedure end':
             indent_var = -1
-            out_line = None
+            out_line = ["pass"] if pass_to_be_added else None
 
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             param_names = [x.split(':')[0].strip() for x in param_list]
+            param_names = [re.sub(array_index, '', x) for x in param_names]
             is_global = not result.groups()[0] is None 
             return_value_type_name = result.groups()[2]
             out_line = ["def " + result.groups()[3] + "(" + ", ".join(param_names) + "): #function returns %s"%return_value_type_name]
@@ -401,20 +413,31 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
             """
             actual_code_block = Function( return_value_type_name,procedure_name, param_names, [], [])
             code_block_dictionary[procedure_name] = actual_code_block
+            pass_to_be_added = True
         if instruction_name == 'function end':
             indent_var = -1
             out_line = None
+            out_line = ["pass"] if pass_to_be_added else None
         if instruction_name == 'function return':
             value = result.groups()[0]
             out_line = ["return" if value is None else ("return " + value)]
 
         if instruction_name == 'ext':
             procedure_name = result.groups()[0]
-            out_line = ["from %s import %s"%(procedure_name,procedure_name)]
+            r = re.search(line_begin+"EXTP", code_line, re.IGNORECASE)
+            module_name = procedure_name #normally a function imported by EXT has the same name of the module in which it is contained. This seems not valid for EXTP
+            if not r is None:
+                module_name = 'kuka_internals'
+            out_line = ["from %s import %s"%(module_name,procedure_name)]
+
 
         if instruction_name == 'extfct':
             return_type, function_name = result.groups()
-            out_line = ["from %s import %s"%(function_name,function_name)]
+            r = re.search(line_begin+"EXTFCTP", code_line, re.IGNORECASE)
+            module_name = procedure_name #normally a function imported by EXT has the same name of the module in which it is contained. This seems not valid for EXTP
+            if not r is None:
+                module_name = 'kuka_internals'
+            out_line = ["from %s import %s"%(module_name,procedure_name)]
 
         if instruction_name == 'if begin':
             """
@@ -537,7 +560,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
             """
             is_global = not result.groups()[0] is None 
             struc_name = result.groups()[2]
-            variables_names = code_line.split(struc_name)[1]
+            variables_names = code_line.split(struc_name, maxsplit=1)[1]
             variables_names = [x.strip() for x in variables_names.split(',')]
             variables_names_with_types = {}
             type_name = ""
@@ -557,7 +580,19 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
             #   var_name = type_name()
 
             out_line = ["class %s(generic_struct):"%struc_name]
-            out_line.extend(["    %s = %s()"%(k,v) for k,v in variables_names_with_types.items()])
+
+            #if the variable (struc field) is an array, we replace the type with a multi_dimensional_array 
+            for var, type_name in variables_names_with_types.items():
+                array_item_count = re.search(array_index, var)
+                #just for debugging breakpoint
+                if not array_item_count is None:
+                    size = array_item_count.groups()[0]
+                    var = var.replace(size, '')
+                    type_name = "multi_dimensional_array(%s, %s)"%(type_name,size)
+                    out_line.append("    %s = %s"%(var,type_name))
+                else:
+                    out_line.append("    %s = %s()"%(var,type_name))
+            
             if is_global:
                 out_line.append("global_defs.%s = %s"%(struc_name, struc_name))
         
@@ -572,7 +607,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False):
                 elem = elem.strip()
                 element_list_with_values.append("%s=%s"%(elem, i))
                 i = i + 1
-            out_line = ['%s = enum(%s, %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', ', '.join(element_list_with_values))]
+            out_line = ['%s = enum(%s, "%s", %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', enum_name, ', '.join(element_list_with_values))]
             
 
 

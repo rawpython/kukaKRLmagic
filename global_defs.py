@@ -19,16 +19,19 @@ class generic_struct():
             if type(args[0]) == type(self):
                 self.__dict__.update(args[0].__dict__)
     
-def enum(module, **kwargs):
+def enum(module, enum_name, **kwargs):
     for k,v in kwargs.items():
         setattr(module, k, v)
+    #constructor = lambda:generic_struct(**kwargs)
+    setattr(module, enum_name, int)
+    return int
 
 class multi_dimensional_array():
     values = None
     size = None
     _type = None
     
-    def __init__(size, _type):
+    def __init__(self, size, _type):
         self.size = size
         self._type = _type
         
@@ -82,3 +85,6 @@ for i in range(1, 4096):
 circ_type = int
 
 jerk_struc = generic_struct
+
+#this is referenced in $operate.dat, I don't know the right definition
+call_stack = int
