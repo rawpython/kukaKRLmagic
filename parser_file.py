@@ -65,7 +65,7 @@ re_if_then = line_begin + "if +" + "(.+)" + " +then" + line_end
 re_else = line_begin + "else" + line_end
 re_endif = line_begin + "endif" + line_end
 
-re_for = line_begin + "for +" + "(.+)" + " +to +(.+)( +step +(.+))? *" + line_end
+re_for = line_begin + "for +" + "(.+)" + " +to +([^ ]+)(?: +step +(.+))? *" + line_end
 re_endfor = line_begin + "endfor" + line_end
 
 re_while = line_begin + "while +" + "(.+)" + line_end
@@ -99,7 +99,7 @@ re_enum = line_begin + _global + "ENUM +([^ ]+) +.*" + line_end
 
 
 #LIN
-re_lin = line_begin + "lin +(.+)" + line_end
+re_lin = line_begin + "lin(?:_rel)? +(.+)" + line_end
 
 #PTP
 re_ptp = line_begin + "ptp +(.+)" + line_end
@@ -113,6 +113,10 @@ re_circ = line_begin + "circ +(.+)" + line_end
 #    case
 #    default
 #endswitch
+re_switch = line_begin + "SWITCH *(.*)"
+re_case = line_begin + "CASE +(.*)"
+re_default = line_begin + "DEFAULT" + line_end
+re_endswitch = line_begin + "ENDSWITCH" + line_end
 
 #defdat name puplic
 #enddat
@@ -139,11 +143,18 @@ re_ext = line_begin + "EXTP? +([^ \(]+) *\("
 #to be import Program_Source.Program_Source as Program_Source
 re_extfct = line_begin + "EXTFCTP? +([^ ]+) +([^ \(]+) *\("
 
+re_geometric_addition_operator = r"([^:=,]+:[^:,]+)"
+
+re_continue = line_begin + "CONTINUE" + line_end
 
 instructions_defs = {
     'meta instruction':     re_meta,
     'exit':                 _exit,
     'halt':                 _halt,
+    'switch':               re_switch,
+    'case':                 re_case,
+    'default':              re_default,
+    'endswitch':            re_endswitch,
     'dat begin':            re_dat_begin,
     'dat end':              re_dat_end,
     'procedure begin':      re_procedure_begin,
@@ -180,6 +191,7 @@ instructions_defs = {
     'wait for':             re_wait_for,
     'ext':                  re_ext,
     'extfct':               re_extfct,
+    'continue':             re_continue, #in KRL Prevention of advance run stops.
 }
 
 simple_instructions_to_replace = {
@@ -201,6 +213,7 @@ simple_instructions_to_replace = {
     'async':'_async', #found in operate.dat
     'class':'_class', #found in operate.dat
     'sys':'_sys', #used somewhere. replacing to not be confused with python module _sys
+    ', *,':   ', None,', #KRL syntax null parameters in function calls
 }
 
 interrupt_declaration_template = """
@@ -258,11 +271,13 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
     indent_var = 0
     out_line = []
     uuid = 0 #a unique number to be incremented when used
-    pass_to_be_added = False
+    pass_to_be_added = False #it indicates if a pass instruction have to be added to empty procedures or functions
+    switch_value = None #takes mem of the switch value actually in process
+
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "EFFCT  INT INTERIMENERGY(CHAR STRVA" in code_line:
+        if "FOR counter = 1 TO 10 STEP 1" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -327,7 +342,21 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
                     instruction_name = k
                     break
 
-        if not (instruction_name in ('procedure end', 'function end')):
+        if not (instruction_name in ('procedure begin', 'function begin', 'ext', 'extfct')):
+            #replacing geometric addition operator :
+            while True:
+                geoadd = re.search(re_geometric_addition_operator, code_line)
+                if not geoadd is None:
+                    span = geoadd.span()
+                    operands = geoadd.groups()[0]
+                    operands = operands.split(':')
+                    to_be_replaced = code_line[span[0]:span[1]]
+                    code_line = code_line.replace(to_be_replaced, "_geometric_addition_operator(%s, %s)"%(operands[0], operands[1]))
+                else:
+                    break
+            out_line = [code_line]
+
+        if not (instruction_name in ('procedure end', 'function end', 'case', '')):
             pass_to_be_added = False
 
         if instruction_name == 'meta instruction':
@@ -338,6 +367,9 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
 
         if instruction_name == 'dat end':
             continue
+        
+        if instruction_name == 'continue':
+            out_line = ['global_defs.robot.do_not_stop_ADVANCE_on_next_IO()']
 
         if instruction_name == 'signal decl':
             is_global, signal_name, signal_start, signal_end = result.groups()
@@ -454,6 +486,38 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
         if instruction_name == 'if end':
             out_line = None
             indent_var = -1
+
+
+        if instruction_name == 'switch':
+            switch_value = result.groups()[0]
+            out_line = None
+            first_switch_instruction = True
+        if instruction_name == 'case':
+            out_line = []
+            if pass_to_be_added:
+                out_line = ['    pass']
+            case_value = result.groups()[0]
+            if first_switch_instruction:
+                out_line.append("if %s == %s:"%(switch_value, case_value))
+            else:
+                indent = indent - 1
+                out_line.append("elif %s == %s:"%(switch_value, case_value))
+            indent_var = indent_var + 1
+            first_switch_instruction = False
+            pass_to_be_added = True
+        if instruction_name == 'default':
+            out_line = []
+            if pass_to_be_added:
+                out_line = ['    pass']
+            indent = indent - 1
+            out_line.append("else:")
+            indent_var = indent_var + 1
+        if instruction_name == 'endswitch':
+            switch_value = None
+            out_line = None
+            indent_var = -1
+            pass_to_be_added = False
+
 
         if instruction_name == 'for begin':
             """

@@ -51,16 +51,8 @@ class multi_dimensional_array():
         pass
     """
 
-def ptp(_pos, _apo):
-    #_pos : position
-    #_apo : c_dis, c_ptp, c_ori
-    pass
-
-def lin(_pos, _apo):
-    #_pos : position
-    #_apo : c_dis, c_ptp, c_ori
-    pass
-
+def _geometric_addition_operator(left_operant, right_operand):
+    return
 
 def fake_func():
     pass
@@ -82,9 +74,39 @@ for i in range(1, 4096):
     inputs[i] = False
     outputs[i] = False
 
-circ_type = int
+def signal(io, io_end_range=None):
+    return 0
+
+#circ_type = int
 
 jerk_struc = generic_struct
 
 #this is referenced in $operate.dat, I don't know the right definition
 call_stack = int
+
+
+class Robot():
+    _do_not_stop_ADVANCE_on_next_IO = False
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def do_not_stop_ADVANCE_on_next_IO(self):
+        self._do_not_stop_ADVANCE_on_next_IO = True
+
+    def ptp(self, position, apo):
+        print("PTP %s %s"%(position, apo))
+
+    def lin(self, position, apo):
+        print("LIN %s %s"%(position, apo))
+
+    def ptp_rel(self, position, apo):
+        print("PTP_REL %s %s"%(position, apo))
+
+    def lin_rel(self, position, apo):
+        print("LIN_REL %s %s"%(position, apo))
+
+    def circ(self, position, apo):
+        print("CIRC %s %s"%(position, apo))
+
+robot = Robot()

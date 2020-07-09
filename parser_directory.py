@@ -33,6 +33,7 @@ parser_file.parse(files['p00.src'], os.path.dirname(os.path.abspath(__file__)) +
 
 parser_file.parse(files['bas.src'], os.path.dirname(os.path.abspath(__file__)) + "/bas.py", "w+", import_config=False, import_operate=True)
 parser_file.parse(files['$config.dat'], os.path.dirname(os.path.abspath(__file__)) + "/config.py", "w+", import_config=False, import_operate=True)
+parser_file.parse(files['ir_stopm.src'], os.path.dirname(os.path.abspath(__file__)) + "/ir_stopm.py", "w+", import_config=False, import_operate=True)
 parser_file.parse(files['sds7000.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000_dat.py", "w+", import_config=True, import_operate=True)
 parser_file.parse(files['sds7000.src'], os.path.dirname(os.path.abspath(__file__)) + "/sds7000.py", "w+", import_config=True, import_operate=True)
 
