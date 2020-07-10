@@ -1,0 +1,85 @@
+&ACCESS RVP
+&PARAM EDITMASK = *
+&PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
+DEF sample_program( )
+E6POS frame_tubi[14]
+
+    BAS(#INITMOV, 0)
+    $VEL.CP = 1.0
+    $ACC.CP = 2.3
+    $ADVANCE = 3
+
+    PTP $AXIS_ACT
+
+    $BASE = $NULLFRAME 
+    $TOOL = $NULLFRAME
+
+    ;$load={M 26.272, CM {FRAME: X 53.320, Y -55.070, Z -123.161, A 0.0, B 0.0, C 0.0}, J {INERTIA: X 0.748942, Y 0.541485, Z 0.873667}}
+
+    frame_tubi[1] = {X 880.000,Y -373.000,Z 70.000,A 0.000,B 0.000,C 4.000}
+    frame_tubi[2] = {X 880.000,Y -300.178,Z 75.092,A 0.000,B 0.000,C 4.000}
+    frame_tubi[3] = {X 880.000,Y -227.356,Z 80.184,A 0.000,B 0.000,C 4.000}
+    frame_tubi[4] = {X 880.000,Y -154.533,Z 85.277,A 0.000,B 0.000,C 4.000}
+    frame_tubi[5] = {X 880.000,Y -81.711,Z 90.369,A 0.000,B 0.000,C 4.000}
+    frame_tubi[6] = {X 880.000,Y -8.889,Z 95.461,A 0.000,B 0.000,C 4.000}
+    frame_tubi[7] = {X 880.000,Y 63.933,Z 100.553,A 0.000,B 0.000,C 4.000}
+    frame_tubi[8] = {X 880.000,Y 136.755,Z 105.646,A 0.000,B 0.000,C 4.000}
+    frame_tubi[9] = {X 880.000,Y 209.577,Z 110.738,A 0.000,B 0.000,C 4.000}
+    frame_tubi[10] = {X 880.000,Y 282.400,Z 115.830,A 0.000,B 0.000,C 4.000}
+    frame_tubi[11] = {X 880.000,Y 355.222,Z 120.922,A 0.000,B 0.000,C 4.000}
+
+    frame_tubi[12] = {X 880.000,Y -308.258,Z 74.527,A 0.000,B 0.000,C 4.000}
+    frame_tubi[13] = {X 880.000,Y -35.923,Z 93.571,A 0.000,B 0.000,C 4.000}
+    frame_tubi[14] = {X 880.000,Y 236.412,Z 112.614,A 0.000,B 0.000,C 4.000}
+
+    PTP {A1 0, A2 -90, A3 90, A4 0, A5 90, A6 0}
+
+    marca(frame_tubi[1], 73)
+    marca(frame_tubi[2], 73)
+    marca(frame_tubi[3], 73)
+    marca(frame_tubi[4], 73)
+    marca(frame_tubi[5], 73)
+    marca(frame_tubi[6], 73)
+    marca(frame_tubi[7], 73)
+    marca(frame_tubi[8], 73)
+    marca(frame_tubi[9], 73)
+    marca(frame_tubi[10], 73)
+    marca(frame_tubi[11], 73)
+
+    marca(frame_tubi[12], 275)
+    marca(frame_tubi[13], 275)
+    marca(frame_tubi[14], 275)
+END
+
+DEF marca(FRAME_TUBO:IN, DIAMETRO:IN)
+E6POS FRAME_TUBO
+REAL DIAMETRO
+E6POS pstart, pend
+E6POS tool_spazzola
+E6POS tool_mark
+
+    
+    tool_mark = {X -70.000,Y 0.000,Z 332.000,A 0.000,B 0.000,C 0.000}
+    ;tool_spazzola = {X -200.000,Y 0.000,Z 315.000,A 0.000,B 0.000,C 0.000}
+
+    pstart = {X 200.000,Y 0.000,Z 0,A -180.000,B 0.000,C -180.000}
+    pend = {X 1700.000,Y 0.000,Z 0,A 180.000,B 0.000,C 180.000}
+    
+    ;corsa accelerazione
+    pstart.X = pstart.X - 220
+    
+    pstart.z = DIAMETRO + 15 ;15 = dist marcatura
+    pend.z = DIAMETRO + 15   ;15 = dist marcatura
+    
+      
+    $TOOL = tool_mark
+    $BASE = FRAME_TUBO
+    
+    $VEL.CP = 1.0
+    $ACC.CP = 2.3
+    ;$TOOL = tool_spazzola
+    LIN pstart
+    $TOOL = tool_mark
+    LIN pend
+    
+END

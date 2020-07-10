@@ -257,18 +257,15 @@ class Function(Procedure):
         self.return_type_name = return_type_name
 
 
-def parse(filename_in, filename_out, write_mode, import_config=False, import_operate=False):
+def parse(filename_in, filename_out, write_mode, imports_to_prepend=''):
     fin = open(filename_in, "r")
     lines = fin.readlines()
     fin.close()
 
     fout = open(filename_out, write_mode)
     fout.write("import global_defs\nfrom global_defs import *\n")
-    if import_config:
-        fout.write("import config\nfrom config import *\n")
-    if import_operate:
-        fout.write("import operate_dat\nfrom operate_dat import *\n")
-
+    fout.write(imports_to_prepend + "\n")
+    
     code_block_dictionary = {}
     actual_code_block = None
 
@@ -282,7 +279,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "$BASE=BASE_CORR:$WORLD:M_BASE_CORR" in code_line:
+        if "E6POS pstart, pend" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -589,21 +586,21 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            out_line = ["lin(%s)"%position]
+            out_line = ["global_defs.robot.lin(%s)"%position]
 
         if instruction_name == 'ptp':
             position = result.groups()[0].strip().lower()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            out_line = ["ptp(%s)"%position]
+            out_line = ["global_defs.robot.ptp(%s)"%position]
 
         if instruction_name == 'circ':
             position = result.groups()[0].strip().lower()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            out_line = ["circ(%s)"%position]
+            out_line = ["global_defs.robot.circ(%s)"%position]
 
         #it is required to parse variable declaration
         #    variables that are procedure parameters don't need to be declared
@@ -619,7 +616,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             is_global = not result.groups()[0] is None 
             type_name = result.groups()[2]
             variables_names = code_line.split(type_name, maxsplit=1)[1] #result.groups()[3].split(',')
-            variables_names = re.split(r" *, *[^\][0-9]]", variables_names) #split with a comma not inside an index definition [,]
+            variables_names = re.split(r" *, *(?!\]|[0-9])", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
             out_line = []
             for var in variables_names:

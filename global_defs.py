@@ -117,19 +117,19 @@ class Robot():
     def do_not_stop_ADVANCE_on_next_IO(self):
         self._do_not_stop_ADVANCE_on_next_IO = True
 
-    def ptp(self, position, apo):
+    def ptp(self, position, apo=None):
         print("PTP %s %s"%(position, apo))
 
-    def lin(self, position, apo):
+    def lin(self, position, apo=None):
         print("LIN %s %s"%(position, apo))
 
-    def ptp_rel(self, position, apo):
+    def ptp_rel(self, position, apo=None):
         print("PTP_REL %s %s"%(position, apo))
 
-    def lin_rel(self, position, apo):
+    def lin_rel(self, position, apo=None):
         print("LIN_REL %s %s"%(position, apo))
 
-    def circ(self, position, apo):
+    def circ(self, position, apo=None):
         print("CIRC %s %s"%(position, apo))
 
 robot = Robot()

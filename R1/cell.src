@@ -1,0 +1,55 @@
+&ACCESS  RVP
+&COMMENT HANDLER on external automatic
+DEF  CELL ( )
+  ;EXT EXAMPLE1 ( )
+  ;EXT EXAMPLE2 ( )
+  ;EXT EXAMPLE3 ( )
+  
+  ;FOLD INIT
+  DECL CHAR DMY[3]
+  DMY[]="---"
+  ;ENDFOLD (INIT)
+  ;FOLD BASISTECH INI
+    GLOBAL INTERRUPT DECL 3 WHEN $STOPMESS==TRUE DO IR_STOPM ( )
+    INTERRUPT ON 3 
+    BAS (#INITMOV,0 )
+  ;ENDFOLD (BASISTECH INI)
+  ;FOLD CHECK HOME
+  $H_POS=XHOME
+  IF CHECK_HOME==TRUE THEN
+    P00 (#CHK_HOME,#PGNO_GET,DMY[],0 ) ;Testing Home-Position 
+  ENDIF
+  ;ENDFOLD (CHECK HOME)
+  ;FOLD PTP HOME  Vel= 100 % DEFAULT;%{PE}%MKUKATPBASIS,%CMOVE,%VPTP,%P 1:PTP, 2:HOME, 3:, 5:100, 7:DEFAULT
+  $H_POS=XHOME
+  PDAT_ACT=PDEFAULT
+  BAS (#PTP_DAT )
+  FDAT_ACT=FHOME
+  BAS (#FRAMES )
+  BAS (#VEL_PTP,100 )
+  PTP  XHOME
+  ;ENDFOLD
+  ;FOLD AUTOEXT INI
+  P00 (#INIT_EXT,#PGNO_GET,DMY[],0 ) ; Initialize extern mode
+  ;ENDFOLD (AUTOEXT INI)
+  LOOP
+    P00 (#EXT_PGNO,#PGNO_GET,DMY[],0 )
+    SWITCH  PGNO ; Select with Programnumber
+
+    CASE 1
+      P00 (#EXT_PGNO,#PGNO_ACKN,DMY[],0 ) ; Reset Progr.No.-Request
+      ;EXAMPLE1 ( ) ; Call User-Program
+
+    CASE 2
+      P00 (#EXT_PGNO,#PGNO_ACKN,DMY[],0 ) ; Reset Progr.No.-Request
+      ;EXAMPLE2 ( ) ; Call User-Program
+
+    CASE 3
+      P00 (#EXT_PGNO,#PGNO_ACKN,DMY[],0 ) ; Reset Progr.No.-Request
+      ;EXAMPLE3 ( ) ; Call User-Program
+
+    DEFAULT
+      P00 (#EXT_PGNO,#PGNO_FAULT,DMY[],0 )
+    ENDSWITCH
+  ENDLOOP
+END

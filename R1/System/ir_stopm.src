@@ -1,0 +1,75 @@
+&ACCESS R
+&COMMENT HandlerOnRobotFault
+DEF  IR_STOPM ( )
+;-----------------------------------
+; Error Handling Robot Controller 
+; Switch OFF and Switch ON processes
+; KRC Version >= V5.5
+;-----------------------------------
+  ;FOLD DECLARATIONS
+  ;FOLD USER DECL
+  ; Please insert user defined declarations
+
+  ;ENDFOLD (USER DECL)
+  ;FOLD BASISTECH DECL
+    BOOL ApplicationRunFlag
+    DECL CHAR ID[3]
+  ;ENDFOLD (BASISTECH DECL)
+  ;ENDFOLD (DECLARATIONS)
+  ;FOLD BASISTECH INIT
+     INTERRUPT OFF 3
+     STOPM_FLAG=TRUE ;Reflects state of interrupt 3 to activate/deactivate $Stopmess interrupt
+     ID[]="CTL"
+     If ($STOPMESS==TRUE) THEN ;APP// "IF" ~ Notepad++ Formatierung
+       BRAKE
+  ;ENDFOLD (BASISTECH INIT) 
+  
+  ;FOLD USER STOP
+;Make your modifications here
+  O_START_MARK=false
+  O_ENABLE_AIR_KNIFE = FALSE
+  O_ENABLE_VORTEX = FALSE
+  O_TRIGGER_LASER = FALSE
+  sysRobotState=RBT_STATE_UNDEFINED
+  
+  ;ENDFOLD (USER STOP)
+  ;FOLD COLLISION DETECTION
+     IF ($IMPROVED_COLLMON == TRUE) AND ($COLL_ALARM == TRUE) THEN
+       CollDetect_UserAction()
+     ENDIF
+  ;ENDFOLD COLLISION DETECTION
+  ;FOLD BASISTECH STOP
+     P00 (#EXT_ERR,#PGNO_GET,ID[],128 )
+     ApplicationRunFlag=FALSE
+     IF (Appl_Run>0) THEN
+       IF $OUT[Appl_Run] THEN
+         ApplicationRunFlag=TRUE
+         $OUT[Appl_Run]=FALSE
+       ENDIF
+     ENDIF
+     REPEAT
+       POWER=SYNC()
+       HALT
+     UNTIL (($STOPMESS==FALSE) AND ($POWER_FAIL==FALSE))
+  ;ENDFOLD (BASISTECH STOP)
+
+  ;FOLD BASISTECH RESTART
+     P00 (#EXT_ERR,#PGNO_GET,ID[],0 )
+     IF (ApplicationRunFlag==TRUE) THEN
+       IF (Appl_Run>0) THEN
+         $OUT[Appl_Run]=TRUE
+       ENDIF
+     ENDIF
+  ;ENDFOLD (BASISTECH RESTART)
+  ;FOLD USER RESTART
+;Make your modifications here
+
+  ;ENDFOLD (USER RESTART)
+  
+  ;FOLD BASISTECH REACTIVATE
+    Endif ;APP// "ENDIF" ~ Notepad++ Formatierung 
+	INTERRUPT ON 3
+    STOPM_FLAG=FALSE ;Reflects state of interrupt 3 to activate/deactivate $Stopmess interrupt   
+  ;ENDFOLD (BASISTECH REACTIVATE)
+END
+ 
