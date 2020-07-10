@@ -8,22 +8,27 @@ given a base directory
 import os
 import parser_file
 
-def run_fast_scandir(root_dir, dirs, files, ext):    # dir: str, ext: list
-    for f in os.scandir(root_dir):
-        if f.is_dir():
-            dirs[f.name] = f.path
-            run_fast_scandir(f.path, dirs, files, ext)
-        if f.is_file():
-            #if os.path.splitext(f.name)[1].lower() in ext:
-            files[f.name] = f.path
+class KRLProject():
+    dirs = None     # a dictionary of dict[path_name_str] = path_str
+    files = None    # dict[file_name_str] = path_str + filename_str
+    modules = None  # a dictionary[module_name_str] = KRLModule_instance
+    def __init__(self, project_folder):
+        #creates a dictionary of files with related folder
+        self.dirs = {}
+        self.files = {}
+        self.scandir(project_folder, self.dirs, self.files)
 
-dirs = {}
-files = {}
-run_fast_scandir(os.path.dirname(os.path.abspath(__file__)), dirs, files, [".jpg"])
-#print(dirs)
-print(files)
+    def scandir(self, root_dir, dirs, files):
+        for f in os.scandir(root_dir):
+            if f.is_dir():
+                dirs[f.name] = f.path
+                self.scandir(f.path, dirs, files)
+            if f.is_file():
+                files[f.name] = f.path
+
 
 #parse $config.dat e produrre il config.py preliminare al quale si appenderanno le definizioni successive dei diversi moduli
+"""
 parser_file.parse(files['kuka_internals.dat'], os.path.dirname(os.path.abspath(__file__)) + "/kuka_internals.py", "w+", imports_to_prepend='')
 parser_file.parse(files['operate.dat'], os.path.dirname(os.path.abspath(__file__)) + "/operate.py", "w+", imports_to_prepend='')
 parser_file.parse(files['operate_r1.dat'], os.path.dirname(os.path.abspath(__file__)) + "/operate_r1.py", "w+", imports_to_prepend='import operate\nfrom operate import *')
@@ -39,13 +44,9 @@ parser_file.parse(files['ir_stopm.src'], os.path.dirname(os.path.abspath(__file_
 parser_file.parse(files['sample_program.dat'], os.path.dirname(os.path.abspath(__file__)) + "/sample_program.py", "w+", imports_to_prepend='import config\nfrom config import *')
 parser_file.parse(files['sample_program.src'], os.path.dirname(os.path.abspath(__file__)) + "/sample_program.py", "a+", imports_to_prepend='')
 import kuka_internals
-#import sds7000
-#sds7000.sds7000()
-import sample_program
-sample_program.sample_program()
+"""
+#import sample_program
+#sample_program.sample_program()
 
-#parse modulename.dat
-#parse modulename.src
-#parse sps.sub
-
+project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
