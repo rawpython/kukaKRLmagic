@@ -22,7 +22,7 @@ _halt = line_begin + "HALT" + line_end
 
 re_binary_number = "'b([0-1]+)'"
 
-re_variable_assignment = line_begin + _global + "(DECL +)?" + variable_name + " +" + variable_name + " *= *([^#]+)" + line_end
+re_variable_assignment = line_begin + _global + "(DECL +)?(?:" + variable_name + " +)?" + variable_name + " *= *([^#]+)" + line_end
 array_index = r"(\[ *[0-9]* *(?:, *[0-9]* *){0,2}\])"
 array_empty_index = r"(\[ *(?:, *){0,2}\])"
 re_variable_decl = line_begin + _global + "(DECL +)?([^ =\(]+) +(([^ =\(]+"+array_index+"?)( *, *[^ =]+"+array_index+"?)*)" + line_end
@@ -66,7 +66,7 @@ re_if_then = line_begin + "if +" + "(.+)" + " +then" + line_end
 re_else = line_begin + "else" + line_end
 re_endif = line_begin + "endif" + line_end
 
-re_for = line_begin + "for +" + "(.+)" + " +to +([^ ]+)(?: +step +(.+))? *" + line_end
+re_for = line_begin + "for +" + "(.+)" + " +to +((?:(?!step).)+)(?: +step +(.+))? *" + line_end
 re_endfor = line_begin + "endfor" + line_end
 
 re_while = line_begin + "while +" + "(.+)" + line_end
@@ -147,6 +147,9 @@ re_extfct = line_begin + "EXTFCTP? +([^ ]+) +([^ \(]+) *\("
 re_geometric_addition_operator = r"([^:=,]+:[^:,]+)"
 
 re_continue = line_begin + "CONTINUE" + line_end
+
+re_string = '((?!r)"[^"]+")' #KRL strings can contain special sequences for python like %s, and so it is required to prepend r""
+re_string_python = '(r"[^"]+")'
 
 instructions_defs = {
     'meta instruction':     re_meta,
@@ -279,7 +282,7 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
     for code_line in lines:
 
         #this is only for debugging for breackpoint at certain instruction
-        if "DEF SORT_CIRCS(CIRCS[]:OUT, NC" in code_line:
+        if "$BASE=BASE_CORR:$WORLD:M_BASE_CORR" in code_line:
             print("")
 
         #spaces are removed to keep the indentation consistent in all the code, as required by Python
@@ -296,6 +299,16 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
         endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]]
         code_line = code_line.replace(endofline_comment_to_append, "")
 
+        #replace strings "..." with r"..." to skip python special sequences
+        code_line_new = ''
+        while True:
+            r = re.search(re_string, code_line) 
+            if r is None:
+                break
+            code_line_new = code_line_new + code_line[0:r.span()[0]]
+            code_line_new = code_line_new + 'r' + code_line[r.span()[0]:r.span()[1]]
+            code_line = code_line[r.span()[1]:]
+        code_line = code_line_new + code_line
 
         #replace binary numbers
         result = re.search(re_binary_number,code_line)
@@ -348,7 +361,8 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
             #replacing geometric addition operator :
             while True:
                 geoadd = re.search(re_geometric_addition_operator, code_line)
-                if not geoadd is None:
+                is_not_a_string = (re.search(re_string_python, code_line) == None)
+                if (not geoadd is None) and is_not_a_string:
                     span = geoadd.span()
                     operands = geoadd.groups()[0]
                     operands = operands.split(':')
@@ -628,10 +642,18 @@ def parse(filename_in, filename_out, write_mode, import_config=False, import_ope
                     endofline_comment_to_append = ""
 
         if instruction_name == 'variable assignment':
+            result = re.search(instructions_defs['variable assignment'], code_line, re.IGNORECASE)
             elements = result.groups()
             #(None, 'decl ', 'circ_type', 'def_circ_typ', 'system_constants.base')
             print(elements)
-            out_line = ["%s = %s(%s)"%(elements[3].strip(), elements[2].strip(), elements[4].strip())]
+            is_global = not elements[0] is None 
+            is_decl = not elements[1] is None
+            type_name = elements[2]
+            if not type_name is None: 
+                type_name = type_name.strip()
+                out_line = ["%s = %s(%s)"%(elements[3].strip(), type_name, elements[4].strip())]
+            else:
+                out_line = ["%s = %s"%(elements[3].strip(), elements[4].strip())]
 
         if instruction_name == 'struc declaration':
             """
