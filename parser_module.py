@@ -16,12 +16,30 @@ instructions_defs = {
     'function begin':       generic_regexes.line_begin + generic_regexes.global_def + "(DEFFCT +)" + "([^ ]+) +" + generic_regexes.function_name + " *\( *(" + generic_regexes.parameters_declaration + ")* *\)" + generic_regexes.line_end,  #creates a function parser
     'function end':         generic_regexes.a_line_containing("ENDFCT"),
 }
+        
+class KRLDat():
+    dat_file = ''   # the str path and file
+    def __init__(self, dat_file):
+        # read all instructions, parse and collect definitions
+        pass
 
-         
-
+class KRLSrc():
+    src_file = ''   # the str path and file
+    def __init__(self, src_file):
+        # read all instructions, parse and collect definitions
+        pass
 
 class KRLModule():
-    def __init__(project_folder, module_name):
+    name = ''
+    module_dat = None   # KRLDat instance
+    module_src = None   # KRLSrc instance
+    def __init__(module_name, dat_path_and_file = '', src_path_and_file = ''):
+        if len(dat_path_and_file):
+            self.module_dat = KRLDat(dat_path_and_file)
+
+        if len(src_path_and_file):
+            self.module_src = KRLSrc(src_path_and_file)
+
 
 simple_instructions_to_replace = {
     r'\$IN':  '$inputs',
