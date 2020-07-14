@@ -1,6 +1,8 @@
 import re
 import os
 import generic_regexes
+from remi import gui
+import collections
 
 """
     This parses dat and src files
@@ -8,6 +10,7 @@ import generic_regexes
 """
 
 instructions_defs = {
+    'meta instruction':     r"(?:^ *\&)",
     'procedure end':        generic_regexes.a_line_containing("END"),
     'function end':         generic_regexes.a_line_containing("ENDFCT"),
     'function return':      generic_regexes.a_line_containing("RETURN +" + "(.+)?"),
@@ -67,13 +70,34 @@ instructions_defs = {
 }
 
 
-class KRLGenericParser():
+class KRLGenericParser(gui.Container):
     stop_statement_found = False
     permissible_instructions_dictionary = None
     def __init__(self, permissible_instructions_dictionary):
-        standard_permissible_instructions = ['halt','switch','lin','ptp','circ','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','variable declaration','function call','wait sec','wait for','continue',]
-        self.permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in standard_permissible_instructions}
-        self.permissible_instructions_dictionary.update(permissible_instructions_dictionary)
+        self.permissible_instructions_dictionary = collections.OrderedDict(permissible_instructions_dictionary)
+        standard_permissible_instructions = ['meta instruction','halt','switch','lin','ptp','circ','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','variable declaration','function call','wait sec','wait for','continue',]
+        self.permissible_instructions_dictionary.update({k:v for k,v in instructions_defs.items() if k in standard_permissible_instructions})
+
+        gui.Container.__init__(self)
+
+    def get_parent_function(self):
+        if self.__class__ == KRLProcedureParser or self.__class__ == KRLFunctionParser:
+            return self
+
+        if not self.get_parent() is None:
+            return self.get_parent().get_parent_function()
+        
+        return None
+
+    def get_parent_module_file(self):
+        import parser_module
+        if self.__class__ == parser_module.KRLModuleDatFileParser or self.__class__ == parser_module.KRLModuleSrcFileParser:
+            return self
+
+        if not self.get_parent() is None:
+            return self.get_parent().get_parent_module_file()
+        
+        return None
 
     def parse(self, file_lines):
         """ Parses the file lines up to the procedure end
@@ -103,6 +127,8 @@ class KRLGenericParser():
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
+        if instruction_name == 'meta instruction':
+            return translation_result_tmp, file_lines
 
         if instruction_name == 'halt':
             translation_result_tmp.append("assert(False) # halt")
@@ -198,9 +224,11 @@ class KRLGenericParser():
             variables_names = [x.strip() for x in variables_names]
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
-                if actual_code_block is None or (not re.sub(array_index, '', var) in actual_code_block.param_names):
+                #if actual_code_block is None or (not re.sub(generic_regexes.index_3d, '', var) in actual_code_block.param_names):
+                parent_function = self.get_parent_function()
+                if parent_function is None or (not re.sub(generic_regexes.c(generic_regexes.index_3d), '', var) in parent_function.param_names):
                     #check if it is an array
-                    array_item_count = re.search(array_index, var)
+                    array_item_count = re.search(generic_regexes.c(generic_regexes.index_3d), var)
                     #just for debugging breakpoint
                     if not array_item_count is None:
                         size = array_item_count.groups()[0]
