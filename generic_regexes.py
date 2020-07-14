@@ -1,3 +1,5 @@
+import re
+
 # this "(?:group content)" is a non capturing group, it finds the related group content but discards
 def c(s): #capture
     return "(%s)"%s      
@@ -5,7 +7,6 @@ def nc(s): #non capture
     return "(?:%s)"%s   
 def d(s): #discard
     return "(?!%s)"%s    
-
     
 
 line_begin = r"(?:^ *)"
@@ -19,6 +20,10 @@ struct_name = dat_name
 global_def = "(GLOBAL +)?"
 parameters_declaration = variable_name + "(?: *\: *)" + "(IN|OUT)" + "(?: *, *)?"
 int_or_real_number = r"((?:\+|-)?[0-9]+(?:\.[0-9]+)?)"
+re_string = '((?!r)"[^"]+")' #KRL strings can contain special sequences for python like %s, and so it is required to prepend r""
+re_string_python = '(r"[^"]+")'
+re_binary_number = "'b([0-1]+)'"
+re_geometric_addition_operator = r"([^:=,]+:[^:,]+)"
 
 
 def a_line_containing(keyword):
@@ -132,9 +137,10 @@ def replace_geometric_operator(code_line):
 
 def check_regex_match(code_line, regex_dict_instruction_name_value):
     match = None
+    instruction_name = ''
     if re.search(re_comment, code_line) is None:
         for k, v in regex_dict_instruction_name_value.items():
-            math = re.search(v, code_line, re.IGNORECASE) 
+            match = re.search(v, code_line, re.IGNORECASE) 
             if not match is None:
                 instruction_name = k
                 match = match.groups()
@@ -146,33 +152,3 @@ def indent_lines(list_of_strings, indent):
     return ret
 
 
-class KRLGenericParser():
-    permissible_instructions_dictionary = None
-    def __init__(self, permissible_instructions_dictionary):
-        self.permissible_instructions_dictionary = permissible_instructions_dictionary
-
-    def parse(self, file_lines):
-        """ Parses the file lines up to the procedure end
-        """
-        translation_result = [] #here are stored the results of instructions translations from krl to python 
-        while len(file_lines):
-            code_line_original = file_lines.pop()
-            
-            code_line, endofline_comment_to_append = generic_regexes.prepare_instruction_for_parsing(code_line_original)
-            code_line = generic_regexes.replace_geometric_operator(code_line)
-            instruction_name, match_groups = generic_regexes.check_regex_match(code_line, permissible_instructions_dictionary)
-            
-            #here is called the specific parser
-            translation_result_tmp, file_lines = self.parse_single_instruction(code_line_original, code_line, instruction_name, match_groups, file_lines)
-
-            if len(translation_result_tmp)>0:
-                if '[,]' in translation_result_tmp[0]:
-                    translation_result_tmp[0] = re.sub('\[,\]', '[:]', translation_result_tmp[0])
-
-                translation_result_tmp[0] = translation_result_tmp[0] + endofline_comment_to_append
-                translation_result.append(*translation_result_tmp)
-            else:
-                if len(endofline_comment_to_append)>0:
-                    translation_result_tmp.append(endofline_comment_to_append + '\n')
-
-        return translation_result, file_lines

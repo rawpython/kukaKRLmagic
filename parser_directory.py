@@ -6,7 +6,8 @@ given a base directory
 """
 
 import os
-import parser_file
+#import parser_file
+import parser_module
 
 class KRLProject():
     dirs = None     # a dictionary of dict[path_name_str] = path_str
@@ -17,6 +18,7 @@ class KRLProject():
         self.dirs = {}
         self.files = {}
         self.scandir(project_folder, self.dirs, self.files)
+        module = parser_module.KRLModule('config', self.files['$config.dat'], src_path_and_file='')
 
     def scandir(self, root_dir, dirs, files):
         for f in os.scandir(root_dir):
