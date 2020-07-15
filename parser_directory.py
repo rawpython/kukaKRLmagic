@@ -9,6 +9,9 @@ import os
 #import parser_file
 import parser_module
 
+def _i(module_name): #import
+    return "import %s\nfrom %s import *\n"%(module_name, module_name)
+
 class KRLProject():
     dirs = None     # a dictionary of dict[path_name_str] = path_str
     files = None    # dict[file_name_str] = path_str + filename_str
@@ -20,17 +23,17 @@ class KRLProject():
         self.modules = []
         self.scandir(project_folder, self.dirs, self.files)
         self.modules.extend( [
-            parser_module.KRLModule('kuka_internals', self.files['kuka_internals.dat'], src_path_and_file=''),
-            parser_module.KRLModule('operate', self.files['operate.dat'], src_path_and_file=''),
-            parser_module.KRLModule('operate_r1', self.files['operate_r1.dat'], src_path_and_file=''),
-            parser_module.KRLModule('machine_dat', self.files['$machine.dat'], src_path_and_file=''),
-            parser_module.KRLModule('robcor_dat', self.files['$robcor.dat'], src_path_and_file=''),
-            parser_module.KRLModule('p00_dat', self.files['p00.dat'], src_path_and_file=self.files['p00.src']),
-            parser_module.KRLModule('p00_subm', '', src_path_and_file=self.files['p00_subm.src']),
-            parser_module.KRLModule('bas', '', src_path_and_file=self.files['bas.src']),
-            parser_module.KRLModule('config', self.files['$config.dat'], src_path_and_file=''),
-            parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.files['ir_stopm.src']),
-            parser_module.KRLModule('sample_program', self.files['sample_program.dat'], src_path_and_file=self.files['sample_program.src']) ])
+            parser_module.KRLModule('kuka_internals', self.files['kuka_internals.dat'], src_path_and_file=self.files['kuka_internals.src'], imports_to_prepend = _i('global_defs')),
+            parser_module.KRLModule('operate', self.files['operate.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('kuka_internals')),
+            parser_module.KRLModule('operate_r1', self.files['operate_r1.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
+            parser_module.KRLModule('machine_dat', self.files['$machine.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs')),
+            parser_module.KRLModule('robcor_dat', self.files['$robcor.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs')),
+            parser_module.KRLModule('p00', self.files['p00.dat'], src_path_and_file=self.files['p00.src'], imports_to_prepend = _i('global_defs') + _i('operate')),
+            parser_module.KRLModule('p00_subm', '', src_path_and_file=self.files['p00_subm.src'], imports_to_prepend = _i('global_defs')),
+            parser_module.KRLModule('bas', '', src_path_and_file=self.files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config')),
+            parser_module.KRLModule('config', self.files['$config.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1') + _i('p00') + _i('p00_subm')),
+            parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
+            parser_module.KRLModule('sample_program', self.files['sample_program.dat'], src_path_and_file=self.files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config')) ])
 
     def scandir(self, root_dir, dirs, files):
         for f in os.scandir(root_dir):
@@ -59,8 +62,8 @@ parser_file.parse(files['sample_program.dat'], os.path.dirname(os.path.abspath(_
 parser_file.parse(files['sample_program.src'], os.path.dirname(os.path.abspath(__file__)) + "/sample_program.py", "a+", imports_to_prepend='')
 import kuka_internals
 """
-#import sample_program
-#sample_program.sample_program()
 
 project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
+import sample_program
+sample_program.sample_program()

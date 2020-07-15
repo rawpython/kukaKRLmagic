@@ -9,14 +9,6 @@ from remi import gui
         analyzed instructions
 """
 
-instructions_defs = {
-    'dat begin':            generic_regexes.line_begin + "(DEFDAT +)" + generic_regexes.dat_name + "( +PUBLIC)?" + generic_regexes.line_end,       #creates a dat parser
-    'dat end':              generic_regexes.a_line_containing("ENDDAT"),
-    'procedure begin':      generic_regexes.line_begin + generic_regexes.global_def + "(DEF +)" + generic_regexes.function_name + " *\( *(" + generic_regexes.parameters_declaration + ")* *\)" + generic_regexes.line_end, #creates a procedure parser
-    'function begin':       generic_regexes.line_begin + generic_regexes.global_def + "(DEFFCT +)" + "([^ ]+) +" + generic_regexes.function_name + " *\( *(" + generic_regexes.parameters_declaration + ")* *\)" + generic_regexes.line_end,  #creates a function parser
-}
-
-
 def fread_lines(file_path_and_name):
     content = None
     with open(file_path_and_name, "r") as f:
@@ -26,12 +18,13 @@ def fread_lines(file_path_and_name):
 
 class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
     file_path_name = ''   # the str path and file
-
+    
     def __init__(self, file_path_name):
         # read all instructions, parse and collect definitions
+        self.indent_comments = False
         self.file_path_name = file_path_name
         permissible_instructions = ['procedure begin', 'function begin']
-        permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
+        permissible_instructions_dictionary = {k:v for k,v in parser_instructions.instructions_defs.items() if k in permissible_instructions}
         parser_instructions.KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
@@ -49,7 +42,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
+                translation_result_tmp.extend(_translation_result_tmp)
             
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
@@ -64,7 +57,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
+                translation_result_tmp.extend(_translation_result_tmp)
         
         _translation_result_tmp, file_lines = parser_instructions.KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
@@ -78,10 +71,14 @@ class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
     
     def __init__(self, file_path_name):
         # read all instructions, parse and collect definitions
+        self.indent_comments = False
         self.file_path_name = file_path_name
-        permissible_instructions = ['dat begin', 'dat end']
-        permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
+        permissible_instructions = ['dat begin', 'dat end', 'enum', 'struc declaration']
+        permissible_instructions_dictionary = {k:v for k,v in parser_instructions.instructions_defs.items() if k in permissible_instructions}
         parser_instructions.KRLGenericParser.__init__(self, permissible_instructions_dictionary)
+        permissible_instructions = ['variable declaration', 'variable assignment']
+        permissible_instructions_dictionary = {k:v for k,v in parser_instructions.instructions_defs.items() if k in permissible_instructions}
+        self.permissible_instructions_dictionary.update(permissible_instructions_dictionary)
         
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
@@ -103,7 +100,7 @@ class KRLModule(gui.Container):
     name = ''
     module_dat = None   # KRLDat instance
     module_src = None   # KRLSrc instance
-    def __init__(self, module_name, dat_path_and_file = '', src_path_and_file = ''):
+    def __init__(self, module_name, dat_path_and_file = '', src_path_and_file = '', imports_to_prepend = ''):
         gui.Container.__init__(self)
         self.name = module_name
         if len(dat_path_and_file):
@@ -113,13 +110,19 @@ class KRLModule(gui.Container):
             translation_result, file_lines = self.module_dat.parse(file_lines)
 
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, 'w+') as f:
-                f.writelines(translation_result)
+                f.write(imports_to_prepend)
+                for l in translation_result:
+                    f.write(l + '\n')
             
         if len(src_path_and_file):
+            has_dat = not (self.module_dat is None)
             self.module_src = KRLModuleSrcFileParser(src_path_and_file)
             self.append(self.module_src)
             file_lines = fread_lines(src_path_and_file)
             translation_result, file_lines = self.module_src.parse(file_lines)
 
-            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, ('a+' if len(dat_path_and_file) else 'w+')) as f:
-                f.writelines(translation_result)
+            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, ('a+' if has_dat else 'w+')) as f:
+                if not has_dat:
+                    f.write(imports_to_prepend)
+                for l in translation_result:
+                    f.write(l + '\n')

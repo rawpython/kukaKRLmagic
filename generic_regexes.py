@@ -10,9 +10,12 @@ def d(s): #discard
     
 
 line_begin = r"(?:^ *)"
-line_end = r"(?: *#+.*)?$"    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
+line_end = r"(?: *(?:#+.*)?)$"    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
 re_comment = line_begin + line_end
-index_3d = "\[ *[0-9]* *(?:, *[0-9]* *){0,2}\]"
+#index_3d = "\[ *[0-9]* *(?:, *[0-9]* *){0,2}\]"
+#index_value = "(?:[0-9]*|[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*)"
+index_value = "(?:[^,#\{\}]*)"
+index_3d = "\[ *%s *(?:, *%s *){0,2}\]"%(index_value, index_value)
 variable_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *" + nc(index_3d) + "?")
 dat_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *")
 function_name = dat_name
@@ -34,7 +37,7 @@ krl_tokes_to_python = {
     r'\$IN':  '$inputs',
     r'\$OUT':  '$outputs',
     r'\$':  'global_defs.',
-    '#':    '',
+    '#':    '_e_n_u_m_',
     ';':    '#',
     '<>':   '!=',
     'B_EXOR':  '^',
@@ -68,7 +71,7 @@ def prepare_instruction_for_parsing(code_line):
     
     #this should remove end of line comment
     endofline_comment_to_append = re.search(line_end, code_line).span()
-    endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]]
+    endofline_comment_to_append = code_line[endofline_comment_to_append[0]:endofline_comment_to_append[1]].strip()
     code_line = code_line.replace(endofline_comment_to_append, "")
 
     #replace { } bracket defined structs

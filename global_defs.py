@@ -24,12 +24,14 @@ class generic_struct():
             if type(args[0]) == type(self):
                 self.__dict__.update(args[0].__dict__)
     
+def enum_decl():
+    return int
 def enum(module, enum_name, **kwargs):
-    for k,v in kwargs.items():
-        setattr(module, k, v)
+    #for k,v in kwargs.items():
+    #    setattr(module, '_e_n_u_m_' + k, v)
     #constructor = lambda:generic_struct(**kwargs)
     setattr(module, enum_name, int)
-    return int
+    return enum_decl
 
 class multi_dimensional_array():
     values = None
