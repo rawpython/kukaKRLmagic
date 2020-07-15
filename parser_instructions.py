@@ -85,11 +85,12 @@ class KRLGenericParser(gui.Container):
         gui.Container.__init__(self)
 
     def get_parent_function(self):
-        if self.__class__ == KRLProcedureParser or self.__class__ == KRLFunctionParser:
+        if issubclass(type(self), KRLProcedureParser) or issubclass(type(self), KRLFunctionParser):
             return self
 
         if not self.get_parent() is None:
-            return self.get_parent().get_parent_function()
+            if issubclass(type(self.get_parent()), KRLGenericParser):
+                return self.get_parent().get_parent_function()
         
         return None
 
@@ -122,7 +123,7 @@ class KRLGenericParser(gui.Container):
                     translation_result_tmp[0] = re.sub('\[,\]', '[:]', translation_result_tmp[0])
 
                 translation_result_tmp[0] = translation_result_tmp[0] + endofline_comment_to_append
-                translation_result.append(*translation_result_tmp)
+                translation_result.extend(translation_result_tmp)
             else:
                 if len(endofline_comment_to_append)>0:
                     translation_result.append(endofline_comment_to_append + '\n')
@@ -143,10 +144,10 @@ class KRLGenericParser(gui.Container):
         if instruction_name == 'switch':
             value_to_switch = match_groups[0]
             node = KRLStatementSwitch( value_to_switch )
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
-            self.append(node)
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         if instruction_name == 'lin':
             position = match_groups[0].strip().lower()
@@ -212,10 +213,10 @@ class KRLGenericParser(gui.Container):
             condition = match_groups[0].strip()
             translation_result_tmp.append("if " + condition + ":")
             node = KRLStatementIf(condition)
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
-            self.append(node)
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         if instruction_name == 'for begin':
             """
@@ -234,41 +235,48 @@ class KRLGenericParser(gui.Container):
                 translation_result_tmp.append("for %s in range(%s, %s):"%(initialization_variable, initialization_value, value_end))
 
             node = KRLStatementFor(initialization_variable, initialization_value, value_end, step)
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
-            self.append(node)
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         
         if instruction_name == 'while begin':
             condition = match_groups[0].strip()
             translation_result_tmp.append("while " + condition + ":")
             node = KRLStatementWhile(condition)
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
-            self.append(node)
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         if instruction_name == 'repeat':
             translation_result_tmp.append("while True:")
             node = KRLStatementRepeatUntil()
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         if instruction_name == 'loop begin':
             translation_result_tmp.append("while True:")
             node = KRLStatementLoop(condition)
+            self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
-                translation_result_tmp.append(*generic_regexes.indent_lines(_translation_result_tmp))
-            self.append(node)
+                translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         if instruction_name == 'interrupt decl':
+            interrupt_declaration_template = """
+def %(interrupt_name)s():
+    if interrupt_flags[%(interrupt_number)s]:
+        if %(condition)s:
+            %(instruction)s
+interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
             is_global, interrupt_number, condition, instruction = match_groups
             is_global = not is_global is None 
             interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
-            translation_result_tmp.append(*interrupt_declaration.split('\n'))
+            translation_result_tmp.extend(interrupt_declaration.split('\n'))
             #translation_result_tmp.append('interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
         if instruction_name == 'interrupt on':
             interrupt_number = match_groups[0]
@@ -278,18 +286,29 @@ class KRLGenericParser(gui.Container):
             translation_result_tmp.append('interrupt_flags[%s] = False'%interrupt_number)
         
         if instruction_name == 'trigger distance':
+            trigger_distance_declaration_template = """
+def %(trigger_name)s():
+    %(instruction)s
+threading.Timer(%(delay)s, %(trigger_name)s).start()"""
+
             distance, delay, instruction = match_groups
             trigger_func_name = 'trigger_func%s'%uuid
             uuid = uuid + 1
             trigger_declaration = trigger_distance_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay}
-            translation_result_tmp.append(*trigger_declaration.split('\n'))
+            translation_result_tmp.extend(trigger_declaration.split('\n'))
             
         if instruction_name == 'trigger path':
+            trigger_path_declaration_template = """
+#this should be scheduled at path=%(path)s, to be implemented
+def %(trigger_name)s():
+    %(instruction)s
+threading.Timer(%(delay)s, %(trigger_name)s).start()"""
+
             path, delay, instruction = match_groups
             trigger_func_name = 'trigger_func%s'%uuid
             uuid = uuid + 1
             trigger_declaration = trigger_path_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay, 'path':path}
-            translation_result_tmp.append(*trigger_declaration.split('\n'))
+            translation_result_tmp.extend(trigger_declaration.split('\n'))
 
         if instruction_name == 'variable declaration':
             """
@@ -338,8 +357,8 @@ class KRLGenericParser(gui.Container):
                 translation_result_tmp.append("%s = %s"%(elements[3].strip(), elements[4].strip()))
 
         if instruction_name == 'function call':
-            #to do
-            assert(False)
+            self.get_parent_function().calling_list.append(match_groups[0])
+            translation_result_tmp.append(code_line.strip())
 
         if instruction_name == 'enum':
             is_global = not match_groups[0] is None 
@@ -373,10 +392,10 @@ class KRLGenericParser(gui.Container):
         if instruction_name == 'extfct':
             return_type, function_name = match_groups[0], match_groups[1]
             r = re.search(generic_regexes.line_begin+"EXTFCTP", code_line, re.IGNORECASE)
-            module_name = procedure_name #normally a function imported by EXT has the same name of the module in which it is contained. This seems not valid for EXTP
+            module_name = function_name #normally a function imported by EXT has the same name of the module in which it is contained. This seems not valid for EXTP
             if not r is None:
                 module_name = 'kuka_internals'
-            translation_result_tmp.append( "from %s import %s"%( module_name, procedure_name ) )
+            translation_result_tmp.append( "from %s import %s"%( module_name, function_name ) )
 
         if instruction_name == 'signal decl':
             is_global, signal_name, signal_start, signal_end = match_groups
@@ -395,6 +414,7 @@ class KRLGenericParser(gui.Container):
 
 class KRLStatementRepeatUntil(KRLGenericParser):
     condition = ""
+    pass_to_be_added = False
     def __init__(self):
         permissible_instructions = ['until']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
@@ -415,13 +435,14 @@ class KRLStatementRepeatUntil(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
 
 class KRLStatementWhile(KRLGenericParser):
     condition = ""
+    pass_to_be_added = False
     def __init__(self, condition):
         self.condition = condition
         permissible_instructions = ['while end']
@@ -440,12 +461,13 @@ class KRLStatementWhile(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
 
 class KRLStatementLoop(KRLGenericParser):
+    pass_to_be_added = False
     def __init__(self):
         permissible_instructions = ['loop end']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
@@ -463,7 +485,7 @@ class KRLStatementLoop(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
@@ -473,6 +495,7 @@ class KRLStatementFor(KRLGenericParser):
     value_begin = ""
     value_end = ""
     value_step = ""
+    pass_to_be_added = False
     def __init__(self, variable, value_begin, value_end, value_step = None):
         self.variable = variable
         self.value_begin = value_begin
@@ -494,13 +517,14 @@ class KRLStatementFor(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
 
 class KRLStatementIf(KRLGenericParser):
     condition = ""
+    pass_to_be_added = False
     def __init__(self, condition):
         self.condition = condition
         permissible_instructions = ['else','if end']
@@ -527,13 +551,15 @@ class KRLStatementIf(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
 
 class KRLStatementSwitch(KRLGenericParser):
     value_to_switch = "" #the switch(value_to_switch)
+    pass_to_be_added = False
+    first_switch_instruction = True
     def __init__(self, value_to_switch):
         self.value_to_switch = value_to_switch
         permissible_instructions = ['case','default','endswitch']
@@ -556,11 +582,11 @@ class KRLStatementSwitch(KRLGenericParser):
                 case_values = case_value.split(',')
                 condition = ' or '.join(['%s == %s'%(self.value_to_switch, x) for x in case_values]) + ':'
 
-            if first_switch_instruction:
+            if self.first_switch_instruction:
                 translation_result_tmp.append("if " + condition)
             else:
                 translation_result_tmp.append("elif " + condition)
-            first_switch_instruction = False
+            self.first_switch_instruction = False
             self.pass_to_be_added = True
         if instruction_name == 'default':
             if self.pass_to_be_added:
@@ -572,7 +598,7 @@ class KRLStatementSwitch(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
 
@@ -582,6 +608,7 @@ class KRLProcedureParser(KRLGenericParser):
     param_names = None
     callers_list = None
     calling_list = None
+    declarations_done = False
     def __init__(self, name, param_names):
         permissible_instructions = ['procedure end','function end','function return','halt','switch','lin','ptp','circ','struc declaration','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','variable declaration','function call','enum','wait sec','wait for','continue',]
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
@@ -607,14 +634,14 @@ class KRLProcedureParser(KRLGenericParser):
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
-            translation_result_tmp.append(*_translation_result_tmp)
+            translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines
 
 
 class KRLFunctionParser(KRLProcedureParser):
     return_type = None
-    def __init__(self, name, param_names, return_type, file_lines):
-        KRLProcedureParser.__init__(self, name, param_names, file_lines)
+    def __init__(self, name, param_names, return_type):
+        KRLProcedureParser.__init__(self, name, param_names)
         self.return_type = return_type
         
