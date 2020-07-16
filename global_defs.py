@@ -3,9 +3,6 @@ import sys
 true = True
 false = False
 
-DOLLAR__vel = {'CP':0}
-DOLLAR__acc = {'CP':0}
-
 real = float
 char = str
 
@@ -24,6 +21,10 @@ class generic_struct():
             if type(args[0]) == type(self):
                 self.__dict__.update(args[0].__dict__)
     
+
+DOLLAR__vel = generic_struct(cp=0, ori1=0, ori2=0)
+DOLLAR__acc = generic_struct(cp=0, ori1=0, ori2=0)
+
 
 class enum():
     enum_name = ''
@@ -50,9 +51,10 @@ class multi_dimensional_array():
     def __init__(self, _type, size):
         self.size = size
         self._type = _type
-        self.data = [_type]
+        self.data = [_type()]
+        size.reverse()
         for s in size:
-            self.data = self.data * s
+            self.data = [self.data] * s
         
     def __getitem__(self, key):
         #key is a tuple
@@ -74,11 +76,11 @@ class multi_dimensional_array():
             return
 
         if len(key) == 1:
-            self.data[key[0]] = self._type(value)
+            self.data[key[0]-1] = self._type(value)
         if len(key) == 2:
-            self.data[key[0]][key[1]] = self._type(value)
+            self.data[key[0]-1][key[1]-1] = self._type(value)
         if len(key) == 3:
-            self.data[key[0]][key[1]][key[2]] = self._type(value)
+            self.data[key[0]-1][key[1]-1][key[2]-1] = self._type(value)
 
     def __delitem__(key):
         pass
