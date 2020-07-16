@@ -57,16 +57,16 @@ instructions_defs = {
     'trigger distance':     generic_regexes.a_line_containing( "TRIGGER +WHEN +DISTANCE *= *(0|1) +DELAY *= *" + generic_regexes.int_or_real_number + " +DO +(.+)" ),
     'trigger path':         generic_regexes.a_line_containing( "TRIGGER +WHEN +PATH *= *(.+) +DELAY *= *" + generic_regexes.int_or_real_number + " +DO +(.+)" ),
 
-    'variable assignment':  generic_regexes.a_line_containing( generic_regexes.global_def + "(DECL +)?(?:" + generic_regexes.variable_name + " +)?" + generic_regexes.variable_name + " *= *([^#]+)" ),
+    'variable assignment':  generic_regexes.a_line_containing( generic_regexes.global_def + "(DECL +)?(?:" + generic_regexes.variable_name + " +)?" + generic_regexes.variable_name + " *= *([^;]+)" ),
     'variable declaration': generic_regexes.a_line_containing( generic_regexes.global_def + "(DECL +)?([^ =\(]+) +(([^ =\(]+"+generic_regexes.c(generic_regexes.index_3d)+"?)( *, *[^ =]+" + generic_regexes.c(generic_regexes.index_3d) + "?)*)" ),
 
     'function call':        generic_regexes.a_line_containing( generic_regexes.variable_name + " *\( *(.*) *\)" ),
 
-    'enum':                 generic_regexes.a_line_containing( generic_regexes.global_def + "ENUM +([^ ]+) +.*" ),
+    'enum definition':                 generic_regexes.a_line_containing( generic_regexes.global_def + "ENUM +([^ ]+) +.*" ),
 
     'wait sec':             generic_regexes.a_line_containing( "WAIT +SEC +" + generic_regexes.int_or_real_number ),
 
-    'wait for':             generic_regexes.a_line_containing( "WAIT +FOR +" + "([^#]+)" ),
+    'wait for':             generic_regexes.a_line_containing( "WAIT +FOR +" + "([^;]+)" ),
 
     'ext':                  generic_regexes.line_begin + "EXTP? +([^ \(]+) *\(",
     'extfct':               generic_regexes.line_begin + "EXTFCTP? +([^ ]+) +([^ \(]+) *\(",
@@ -116,11 +116,15 @@ class KRLGenericParser(gui.Container):
             code_line_original = file_lines.pop(0)
             
             code_line, endofline_comment_to_append = generic_regexes.prepare_instruction_for_parsing(code_line_original)
+            code_line = generic_regexes.replace_enum_value(code_line)
 
             instruction_name, match_groups = generic_regexes.check_regex_match(code_line, self.permissible_instructions_dictionary)
             
             #here is called the specific parser
             translation_result_tmp, file_lines = self.parse_single_instruction(code_line_original, code_line, instruction_name, match_groups, file_lines)
+
+            if endofline_comment_to_append.startswith(';'):
+                endofline_comment_to_append = '#' + endofline_comment_to_append
 
             if len(translation_result_tmp)>0:
                 if '[,]' in translation_result_tmp[0]:
@@ -368,7 +372,7 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             self.get_parent_function().calling_list.append(match_groups[0])
             translation_result_tmp.append(code_line.strip())
 
-        if instruction_name == 'enum':
+        if instruction_name == 'enum definition':
             is_global = not match_groups[0] is None 
             enum_name = match_groups[1].strip()
             elements = code_line.split(enum_name)[1]
@@ -377,11 +381,16 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             element_list_with_values = []
             for elem in element_list:
                 elem = elem.strip()
-                element_list_with_values.append("%s=%s"%(elem, i))
+                element_list_with_values.append("'%s':%s"%(elem, i))
                 i = i + 1
-            translation_result_tmp.append('%s = enum(%s, "%s", %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', enum_name, ', '.join(element_list_with_values)))
-            for e in element_list_with_values:
-                translation_result_tmp.append('_e_n_u_m_' + e)
+            #translation_result_tmp.append('%s = global_defs.enum(%s, "%s", %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', enum_name, ', '.join(element_list_with_values)))
+            enum_template = """
+class %(enum_name)s(global_defs.enum): #enum
+    enum_name = '%(enum_name)s'
+    values_dict = {%(values)s}
+"""
+            #translation_result_tmp.append('%s = global_defs.enum(%s, "%s")'%(enum_name, ', '.join(element_list_with_values)))
+            translation_result_tmp.append(enum_template%{'enum_name': enum_name, 'values':', '.join(element_list_with_values)})
             
         if instruction_name == 'wait sec':
             t = match_groups[0]
@@ -624,7 +633,7 @@ class KRLProcedureParser(KRLGenericParser):
     declarations_done = False
     pass_to_be_added = True
     def __init__(self, name, param_names):
-        permissible_instructions = ['procedure end','function end','enum','struc declaration']
+        permissible_instructions = ['procedure end','function end','enum definition','struc declaration']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
         #this is to reduce priority of instruction declaration, otherwise it gets priority over instructions such as "RETURN value"

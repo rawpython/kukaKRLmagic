@@ -10,11 +10,11 @@ def d(s): #discard
     
 
 line_begin = r"(?:^ *)"
-line_end = r"(?: *(?:#+.*)?)$"    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
+line_end = r"(?: *(?:;+.*)?)$"    #here sharp # is used instead of dot comma ; to define a line ending with comment, this is because the dot comma are replaced with sharp before parsing
 re_comment = line_begin + line_end
 #index_3d = "\[ *[0-9]* *(?:, *[0-9]* *){0,2}\]"
 #index_value = "(?:[0-9]*|[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*)"
-index_value = "(?:[^,#\{\}]*)"
+index_value = "(?:[^,;\{\}]*)"
 index_3d = "\[ *%s *(?:, *%s *){0,2}\]"%(index_value, index_value)
 variable_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *" + nc(index_3d) + "?")
 dat_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *")
@@ -27,6 +27,7 @@ re_string = '((?!r)"[^"]+")' #KRL strings can contain special sequences for pyth
 re_string_python = '(r"[^"]+")'
 re_binary_number = "'b([0-1]+)'"
 re_geometric_addition_operator = r"([^:=,]+:[^:,]+)"
+enum_value = '(#[^ ,\[\]\(\)\{\}\+\-\*/\'\"]+)'
 
 
 def a_line_containing(keyword):
@@ -36,9 +37,7 @@ def a_line_containing(keyword):
 krl_tokes_to_python = {
     r'\$IN':  '$inputs',
     r'\$OUT':  '$outputs',
-    r'\$':  'global_defs.',
-    '#':    '_e_n_u_m_',
-    ';':    '#',
+    r'\$':  'DOLLAR__',
     '<>':   '!=',
     'B_EXOR':  '^',
     'B_AND':   '&',
@@ -133,6 +132,19 @@ def replace_geometric_operator(code_line):
             operands = operands.split(':')
             to_be_replaced = code_line[span[0]:span[1]]
             code_line = code_line.replace(to_be_replaced, "_geometric_addition_operator(%s, %s)"%(operands[0], operands[1]))
+        else:
+            break
+    return code_line
+
+
+def replace_enum_value(code_line):
+    while True:
+        enum_value_match = re.search(enum_value, code_line)
+        if (not enum_value_match is None):
+            span = enum_value_match.span()
+            enum_value_match_string = enum_value_match.groups()[0]
+            #to_be_replaced = code_line[span[0]:span[1]]
+            code_line = code_line.replace(enum_value_match_string, '\'%s\''%(enum_value_match_string.replace('#','')))
         else:
             break
     return code_line

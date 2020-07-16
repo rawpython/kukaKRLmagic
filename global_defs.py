@@ -3,8 +3,8 @@ import sys
 true = True
 false = False
 
-_dollar_VEL = {'CP':0}
-_dollar_ACC = {'CP':0}
+DOLLAR__vel = {'CP':0}
+DOLLAR__acc = {'CP':0}
 
 real = float
 char = str
@@ -24,14 +24,22 @@ class generic_struct():
             if type(args[0]) == type(self):
                 self.__dict__.update(args[0].__dict__)
     
-def enum_decl():
-    return int
-def enum(module, enum_name, **kwargs):
-    #for k,v in kwargs.items():
-    #    setattr(module, '_e_n_u_m_' + k, v)
-    #constructor = lambda:generic_struct(**kwargs)
-    setattr(module, enum_name, int)
-    return enum_decl
+
+class enum():
+    enum_name = ''
+    values_dict = None
+    actual_value = None
+    def __init__(self, value=None): #args contains values
+        if not value is None:
+            self.actual_value = self.values_dict[value]
+
+    def __call__(self, value = None):
+        ret = self.__class__()
+        if not arg is None:
+            self.actual_value = self.values_dict[value]
+            ret.actual_value = self.actual_value
+        return ret
+
 
 class multi_dimensional_array():
     values = None
@@ -62,15 +70,15 @@ class multi_dimensional_array():
 
     def __setitem__(self, key, value):
         if type(key) == int:
-            self.data[key-1] = value
+            self.data[key-1] = self._type(value)
             return
 
         if len(key) == 1:
-            self.data[key[0]] = value
+            self.data[key[0]] = self._type(value)
         if len(key) == 2:
-            self.data[key[0]][key[1]] = value
+            self.data[key[0]][key[1]] = self._type(value)
         if len(key) == 3:
-            self.data[key[0]][key[1]][key[2]] = value
+            self.data[key[0]][key[1]][key[2]] = self._type(value)
 
     def __delitem__(key):
         pass
@@ -87,17 +95,17 @@ for i in range(1, 129):
     interrupt_flags[i] = False #activated by interrupt on
     interrupts[i] = fake_func 
 
-timer = {}
-timer_stop = {}
+DOLLAR__timer = {}
+DOLLAR__timer_stop = {}
 for i in range(1, 129):
-    timer_stop[i] = True #activated by interrupt on
-    timer[i] = 0 
+    DOLLAR__timer_stop[i] = True #activated by interrupt on
+    DOLLAR__timer[i] = 0 
 
-inputs = {}
-outputs = {}
-for i in range(1, 4096):
-    inputs[i] = False
-    outputs[i] = False
+DOLLAR__inputs = {}
+DOLLAR__outputs = {}
+for i in range(1, 4097):
+    DOLLAR__inputs[i] = False
+    DOLLAR__outputs[i] = False
 
 def signal(io, io_end_range=None):
     return 0

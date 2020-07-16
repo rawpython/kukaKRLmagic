@@ -73,7 +73,7 @@ class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
         # read all instructions, parse and collect definitions
         self.indent_comments = False
         self.file_path_name = file_path_name
-        permissible_instructions = ['dat begin', 'dat end', 'enum', 'struc declaration']
+        permissible_instructions = ['dat begin', 'dat end', 'enum definition', 'struc declaration']
         permissible_instructions_dictionary = {k:v for k,v in parser_instructions.instructions_defs.items() if k in permissible_instructions}
         parser_instructions.KRLGenericParser.__init__(self, permissible_instructions_dictionary)
         permissible_instructions = ['variable declaration', 'variable assignment']
