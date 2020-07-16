@@ -1,10 +1,53 @@
 import sys
+import collections
+import functools
 
 true = True
 false = False
 
+
+"""
+class real():
+    value = 0.0
+    def __init__(self, value = 0.0):
+        self.set_value(value)
+
+    def set_value(self, v):
+        if type(v) == real:
+            self.value = v.value
+        else:
+            self.value = float(v)
+
+class krl_int():
+    value = 0
+    def __init__(self, value = 0):
+        self.value = value
+
+    def set_value(self, value):
+        self.value = value
+"""
+
 real = float
+krl_int = int
 char = str
+
+class krl_list(collections.deque):
+    def __init__(self, *args, **kwargs):
+        collections.deque.__init__(self, *args, **kwargs)
+
+    def set_value(self, value):
+        for i in range(0, len(value)):
+            self[i] = value[i]
+"""
+class char():
+    value = ''
+    def __init__(self, value = ''):
+        self.value = value
+
+    def set_value(self, value):
+        self.value = value
+
+"""
 
 def _not(value):
     if type(value) is bool:
@@ -13,13 +56,24 @@ def _not(value):
 
 class generic_struct():
     def __init__(self, *args, **kwargs):
+        for k,v in kwargs.items():
+            if type(v) == int:
+                kwargs[k] = krl_int(v)
+            if type(v) == float:
+                kwargs[k] = real(v)
+            if type(v) == char:
+                kwargs[k] = char(v)
+
         self.__dict__.update(kwargs)
         #in the case where a structure (inheriting a generic_struct) gets as parameter a generic_struct
         # DECL JERK_STRUC DEF_JERK_STRUC={CP 500.000,ORI 50000.0,AX {A1 1000.00,A2 1000.00,A3 1000.00,A4 1000.00,A5 1000.00,A6 1000.00,E1 1000.00,E2 1000.00,E3 1000.00,E4 1000.00,E5 1000.00,E6 1000.00}} ; jerk value for the spline. CP: [m/Sec3], ORI: [[GRAD/Sec3], AX: [[GRAD/Sec3] (rotatory) resp. [m/Sec3] (linear)
         # def_jerk_struc = jerk_struc(generic_struct(cp=500.000,ori=50000.0,ax=generic_struct(a1=1000.00,a2=1000.00,a3=1000.00,a4=1000.00,a5=1000.00,a6=1000.00,e1=1000.00,e2=1000.00,e3=1000.00,e4=1000.00,e5=1000.00,e6=1000.00)))
         if not args is None and len(args) > 0:
-            if type(args[0]) == type(self):
+            if issubclass(type(args[0]),generic_struct):
                 self.__dict__.update(args[0].__dict__)
+    
+    def set_value(self, value):
+        self.__dict__.update(value.__dict__)
     
 
 DOLLAR__vel = generic_struct(cp=0, ori1=0, ori2=0)
@@ -41,6 +95,9 @@ class enum():
             ret.actual_value = self.actual_value
         return ret
 
+    def set_value(self, value):
+        self.actual_value = value
+
 
 class multi_dimensional_array():
     values = None
@@ -49,41 +106,39 @@ class multi_dimensional_array():
     data = None
 
     def __init__(self, _type, size):
-        self.size = size
+        self.size = size[0]
         self._type = _type
-        self.data = [_type()]
-        size.reverse()
-        for s in size:
-            self.data = [self.data] * s
+
+        if len(size)>1:
+            self.data = krl_list([multi_dimensional_array(_type, size[1:]) for x in range(0, size[0])])
+        else:
+            self.data = krl_list([_type()]*size[0])
         
-    def __getitem__(self, key):
-        #key is a tuple
-        # if accessed by my_multidimensional_array[1,1]
-        #   key=(1,1)
-        # if accessed by my_multidimensional_array[5,]
-        #   key=(5,) #the key is a tuple with len==1
-        if type(key) == int:
-            return self.data[key-1]
-
-        value = self.data
-        for i in key:
-            value = value[i]
-        return value
-
-    def __setitem__(self, key, value):
-        if type(key) == int:
-            self.data[key-1] = self._type(value)
-            return
-
-        if len(key) == 1:
-            self.data[key[0]-1] = self._type(value)
-        if len(key) == 2:
-            self.data[key[0]-1][key[1]-1] = self._type(value)
-        if len(key) == 3:
-            self.data[key[0]-1][key[1]-1][key[2]-1] = self._type(value)
+    def __getitem__(self, indexes):
+        if not (type(indexes) == int) and len(indexes) == 1:
+            indexes = indexes[0]
+        if type(indexes) == int:
+            return self.data[indexes-1]
+        if len(indexes)>1:
+            return self.data[indexes[0]-1].__getitem__(indexes[1:])
+        
+    def __setitem__(self, indexes, value):
+        if not (type(indexes) == int) and len(indexes) == 1:
+            self.data[indexes[0]-1].set_value(value)
+        elif type(indexes) == int:
+            self.data[indexes-1] = self._type(value)
+        else:
+            self.data[indexes[0]-1].__setitem__(indexes[1:], value)
 
     def __delitem__(key):
         pass
+
+    def set_value(self, value):
+        if type(value) == generic_struct:
+            self.data.set_value(value)
+            return
+        for i in range(0, len(value)):
+            self.data[i] = value[i]
     
 
 def _geometric_addition_operator(left_operant, right_operand):

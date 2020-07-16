@@ -30,8 +30,9 @@ class KRLProject():
             parser_module.KRLModule('robcor_dat', self.files['$robcor.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1')),
             parser_module.KRLModule('p00', self.files['p00.dat'], src_path_and_file=self.files['p00.src'], imports_to_prepend = _i('global_defs') + _i('operate')),
             parser_module.KRLModule('p00_subm', '', src_path_and_file=self.files['p00_subm.src'], imports_to_prepend = _i('global_defs')),
-            parser_module.KRLModule('bas', '', src_path_and_file=self.files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat')),
             parser_module.KRLModule('config', self.files['$config.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1') + _i('p00') + _i('p00_subm')),
+            parser_module.KRLModule('bas', '', src_path_and_file=self.files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat')),
+            
             parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
             parser_module.KRLModule('sample_program', self.files['sample_program.dat'], src_path_and_file=self.files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config')) ])
 

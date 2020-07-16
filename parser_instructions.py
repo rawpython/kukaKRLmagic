@@ -331,6 +331,10 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             variables_names = code_line.split(type_name, maxsplit=1)[1] #match_groups[3].split(',')
             variables_names = re.split(r" *, *(?!\]|[0-9])", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
+
+            if type_name in ['int', ]:
+                type_name = 'krl_' + type_name
+
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 #if actual_code_block is None or (not re.sub(generic_regexes.index_3d, '', var) in actual_code_block.param_names):
@@ -366,7 +370,16 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
                 type_name = type_name.strip()
                 translation_result_tmp.append("%s = %s(%s)"%(elements[3].strip(), type_name, elements[4].strip()))
             else:
-                translation_result_tmp.append("%s = %s"%(elements[3].strip(), elements[4].strip()))
+                var = elements[3].strip()
+                array_item_count = re.search(generic_regexes.c(generic_regexes.index_3d), var)
+                #just for debugging breakpoint
+                if not array_item_count is None:
+                    size = array_item_count.groups()[0]
+                    var = var.replace(size, '')
+                    translation_result_tmp.append("globals()['%s']%s = %s"%(var, size, elements[4].strip()))
+                else:
+                    translation_result_tmp.append("globals()['%s'] = %s"%(var, elements[4].strip()))
+
 
         if instruction_name == 'function call':
             self.get_parent_function().calling_list.append(match_groups[0])
