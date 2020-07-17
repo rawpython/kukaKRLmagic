@@ -140,8 +140,22 @@ class KRLGenericParser(gui.Container):
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
-        if 'P00_subm' in code_line_original:
+
+
+
+
+
+
+
+        if 'DEFFCT  INT INTERIMENERGY(STRVAR[256] :IN)' in code_line_original:
             print("brakepoint")
+
+
+
+
+
+
+
         if not instruction_name in ['ext', 'extfct']:
             code_line = generic_regexes.replace_geometric_operator(code_line)
 
@@ -167,7 +181,7 @@ class KRLGenericParser(gui.Container):
             translation_result_tmp.append("global_defs.robot.lin(%s)"%position)
 
         if instruction_name == 'ptp':
-            position = match_groups[0].strip().lower()
+            position = match_groups[0].strip()
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
@@ -206,11 +220,8 @@ class KRLGenericParser(gui.Container):
 
             #if the variable (struc field) is an array, we replace the type with a multi_dimensional_array 
             for var, type_name in variables_names_with_types.items():
-                array_item_count = re.search(generic_regexes.c(generic_regexes.index_3d), var)
-                #just for debugging breakpoint
-                if not array_item_count is None:
-                    size = array_item_count.groups()[0]
-                    var = var.replace(size, '')
+                var, size, is_array = generic_regexes.split_varname_index(var)
+                if is_array:
                     type_name = "multi_dimensional_array(%s, %s)"%(type_name,size)
                     translation_result_tmp.append("    %s = %s"%(var,type_name))
                 else:
@@ -240,9 +251,9 @@ class KRLGenericParser(gui.Container):
             step = match_groups[2]
 
             if not step is None: 
-                translation_result_tmp.append("for %s in range(%s, %s, %s):"%(initialization_variable, initialization_value, value_end, step.strip()))
+                translation_result_tmp.append("for %s in range(%s, %s + 1, %s):"%(initialization_variable, initialization_value, value_end, step.strip()))
             else:
-                translation_result_tmp.append("for %s in range(%s, %s):"%(initialization_variable, initialization_value, value_end))
+                translation_result_tmp.append("for %s in range(%s, %s + 1):"%(initialization_variable, initialization_value, value_end))
 
             node = KRLStatementFor(initialization_variable, initialization_value, value_end, step)
             self.append(node)
@@ -339,24 +350,29 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 #if actual_code_block is None or (not re.sub(generic_regexes.index_3d, '', var) in actual_code_block.param_names):
                 parent_function = self.get_parent_function()
-                if parent_function is None or (not re.sub(generic_regexes.c(generic_regexes.index_3d), '', var) in parent_function.param_names):
+                var, size, is_array = generic_regexes.split_varname_index(var)
+
+                if not parent_function is None:
+                    parent_function.local_variables[var] = type_name
+
+                if parent_function is None or not var in parent_function.param_names:
                     #check if it is an array
-                    array_item_count = re.search(generic_regexes.c(generic_regexes.index_3d), var)
-                    #just for debugging breakpoint
-                    if not array_item_count is None:
-                        size = array_item_count.groups()[0]
-                        var = var.replace(size, '')
+                    if is_array:
                         translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
-                        #[int()]*10
-                        #[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                     else:
                         translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
                 else:
-                    #if the variable decl is a function parameter it have to be not declared again
-                    # and we discard also an end of line comment
-                    if not parent_function is None:
-                        parent_function.pass_to_be_added = True
-                    endofline_comment_to_append = ""
+                    #   #if the variable decl is a function parameter it have to be not declared again
+                    #    # and we discard also an end of line comment
+                    #    if not parent_function is None:
+                    #        parent_function.pass_to_be_added = True
+                    #endofline_comment_to_append = ""
+
+                    if not parent_function is None: #if variable declaration is a procedure paramter
+                        if not is_array: #this is intended to recreate enum, arrays are already transferred correctly
+                            translation_result_tmp.append(("global_defs." if is_global else "")+"%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name})
+
+
 
         if instruction_name == 'variable assignment':
             result = re.search(instructions_defs['variable assignment'], code_line, re.IGNORECASE)
@@ -366,19 +382,29 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             is_global = not elements[0] is None 
             is_decl = not elements[1] is None
             type_name = elements[2]
+            var = elements[3].strip()
+            value = elements[4].strip()
+            var, size, is_array = generic_regexes.split_varname_index(var)
+
+            parent_function = self.get_parent_function()
+
             if not type_name is None: 
                 type_name = type_name.strip()
-                translation_result_tmp.append("%s = %s(%s)"%(elements[3].strip(), type_name, elements[4].strip()))
+                translation_result_tmp.append("%s%s = %s(%s)"%(var, size, type_name, value))
+                
+                #if there is a parent function, the variable name have to be appended to local_variables dictionary
+                if not parent_function is None:
+                    parent_function.local_variables[var] = type_name
+
             else:
-                var = elements[3].strip()
-                array_item_count = re.search(generic_regexes.c(generic_regexes.index_3d), var)
-                #just for debugging breakpoint
-                if not array_item_count is None:
-                    size = array_item_count.groups()[0]
-                    var = var.replace(size, '')
-                    translation_result_tmp.append("globals()['%s']%s = %s"%(var, size, elements[4].strip()))
+                if not parent_function is None:
+                    if not (generic_regexes.var_without_pointed_field(var)[0] in parent_function.local_variables):
+                        parent_function.global_variables.append(generic_regexes.var_without_pointed_field(var)[0])
+
+                if is_array:
+                    translation_result_tmp.append("%s%s = %s"%(var, size, value))
                 else:
-                    translation_result_tmp.append("globals()['%s'] = %s"%(var, elements[4].strip()))
+                    translation_result_tmp.append("%s = %s"%(var, value))
 
 
         if instruction_name == 'function call':
@@ -640,6 +666,8 @@ class KRLStatementSwitch(KRLGenericParser):
 
 class KRLProcedureParser(KRLGenericParser):
     name = ""
+    local_variables = None #dictionary variable_name:type
+    global_variables = None #list of variable_name
     param_names = None
     callers_list = None
     calling_list = None
@@ -652,10 +680,24 @@ class KRLProcedureParser(KRLGenericParser):
         #this is to reduce priority of instruction declaration, otherwise it gets priority over instructions such as "RETURN value"
         self.permissible_instructions_dictionary['variable declaration'] = instructions_defs['variable declaration']
         self.name = name
+        self.local_variables = {}
+        self.global_variables = []
         self.param_names = param_names
         self.callers_list = []
         self.calling_list = []
 
+    
+    def parse(self, file_lines):
+        # Parses the file lines up to the procedure end
+
+        translation_result = [] #here are stored the results of instructions translations from krl to python 
+        _translation_result, file_lines = KRLGenericParser.parse(self, file_lines)
+        if len(self.global_variables) > 0:
+            translation_result.append("    global " + ', '.join(self.global_variables))
+        translation_result.extend(_translation_result)
+
+        return translation_result, file_lines
+    
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
 

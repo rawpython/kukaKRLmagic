@@ -34,7 +34,7 @@ class KRLProject():
             parser_module.KRLModule('bas', '', src_path_and_file=self.files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat')),
             
             parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
-            parser_module.KRLModule('sample_program', self.files['sample_program.dat'], src_path_and_file=self.files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config')) ])
+            parser_module.KRLModule('sample_program', self.files['sample_program.dat'], src_path_and_file=self.files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')) ])
 
     def scandir(self, root_dir, dirs, files):
         for f in os.scandir(root_dir):

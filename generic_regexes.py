@@ -166,4 +166,22 @@ def indent_lines(list_of_strings, indent):
     ret = ['    '*indent + x for x in list_of_strings]
     return ret
 
+def split_varname_index(_var): #given potato[3,2] it returns 'potato','[3,2]',True
+    var = _var
+    size = ''
+    is_array = False
+    ret = re.search(c(index_3d), var)
+    if not ret is None:
+        size = ret.groups()[0]
+        var = var.replace(size, '')
+        is_array = True
+    return var, size, is_array
 
+def var_without_pointed_field(_var): #given potato.weight it returns 'potato', 'weight', is_pointed
+    var = _var
+    field = ''
+    is_pointed = False
+    if '.' in var:
+        is_pointed = True
+        var, field = var.split('.', maxsplit = 1)
+    return var, field, is_pointed

@@ -3,6 +3,9 @@
 &PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
 DEF sample_program( )
 E6POS frame_tubi[14]
+BOOL potato
+INT i
+INT values[3]
 
     BAS(#INITMOV, 0)
     $VEL.CP = 1.0
@@ -14,6 +17,19 @@ E6POS frame_tubi[14]
     $BASE = $NULLFRAME 
     $TOOL = $NULLFRAME
 
+    values[1] = 1
+    values[2] = 2
+    values[3] = 3
+    for i=1 to 3
+        print("value")
+        print(values[i])
+        potato = true
+        if potato then
+            print("potato is true")
+        else
+            print("potato is false")
+        endif
+    endfor
     ;$load={M 26.272, CM {FRAME: X 53.320, Y -55.070, Z -123.161, A 0.0, B 0.0, C 0.0}, J {INERTIA: X 0.748942, Y 0.541485, Z 0.873667}}
 
     frame_tubi[1] = {X 880.000,Y -373.000,Z 70.000,A 0.000,B 0.000,C 4.000}
