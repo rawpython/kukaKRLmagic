@@ -147,7 +147,7 @@ class KRLGenericParser(gui.Container):
 
 
 
-        if 'DEFFCT  INT INTERIMENERGY(STRVAR[256] :IN)' in code_line_original:
+        if 'GLOBAL DEF SET_CM_PRO_DEFAULT()' in code_line_original:
             print("brakepoint")
 
 
@@ -288,12 +288,12 @@ class KRLGenericParser(gui.Container):
                 translation_result_tmp.extend(_translation_result_tmp)
 
         if instruction_name == 'interrupt decl':
-            interrupt_declaration_template = """
-def %(interrupt_name)s():
-    if interrupt_flags[%(interrupt_number)s]:
-        if %(condition)s:
-            %(instruction)s
-interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
+            interrupt_declaration_template = \
+                "def %(interrupt_name)s():\n" \
+                "    if interrupt_flags[%(interrupt_number)s]:\n" \
+                "        if %(condition)s:\n" \
+                "            %(instruction)s\n" \
+                "interrupts[%(interrupt_number)s] = %(interrupt_name)s\n"
             is_global, interrupt_number, condition, instruction = match_groups
             is_global = not is_global is None 
             interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
@@ -307,10 +307,10 @@ interrupts[%(interrupt_number)s] = %(interrupt_name)s"""
             translation_result_tmp.append('interrupt_flags[%s] = False'%interrupt_number)
         
         if instruction_name == 'trigger distance':
-            trigger_distance_declaration_template = """
-def %(trigger_name)s():
-    %(instruction)s
-threading.Timer(%(delay)s, %(trigger_name)s).start()"""
+            trigger_distance_declaration_template = \
+                "def %(trigger_name)s():\n" \
+                "    %(instruction)s\n" \
+                "threading.Timer(%(delay)s, %(trigger_name)s).start()\n"
 
             distance, delay, instruction = match_groups
             trigger_func_name = 'trigger_func%s'%uuid
@@ -319,11 +319,11 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             translation_result_tmp.extend(trigger_declaration.split('\n'))
             
         if instruction_name == 'trigger path':
-            trigger_path_declaration_template = """
-#this should be scheduled at path=%(path)s, to be implemented
-def %(trigger_name)s():
-    %(instruction)s
-threading.Timer(%(delay)s, %(trigger_name)s).start()"""
+            trigger_path_declaration_template = \
+                "#this should be scheduled at path=%(path)s, to be implemented\n" \
+                "def %(trigger_name)s():\n" \
+                "    %(instruction)s\n" \
+                "threading.Timer(%(delay)s, %(trigger_name)s).start()\n"
 
             path, delay, instruction = match_groups
             trigger_func_name = 'trigger_func%s'%uuid
@@ -343,9 +343,6 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
             variables_names = re.split(r" *, *(?!\]|[0-9])", variables_names) #split with a comma not inside an index definition [,]
             variables_names = [x.strip() for x in variables_names]
 
-            if type_name in ['int', ]:
-                type_name = 'krl_' + type_name
-
             for var in variables_names:
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 #if actual_code_block is None or (not re.sub(generic_regexes.index_3d, '', var) in actual_code_block.param_names):
@@ -361,6 +358,9 @@ threading.Timer(%(delay)s, %(trigger_name)s).start()"""
                         translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
                     else:
                         translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
+
+                    if is_global:
+                        translation_result_tmp.append("from global_defs import %s"%(var))
                 else:
                     #   #if the variable decl is a function parameter it have to be not declared again
                     #    # and we discard also an end of line comment

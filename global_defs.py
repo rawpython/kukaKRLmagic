@@ -1,6 +1,9 @@
 import sys
 import collections
 import functools
+import threading
+import traceback
+import sys
 
 true = True
 false = False
@@ -18,17 +21,23 @@ class real():
         else:
             self.value = float(v)
 
-class krl_int():
+class krl_int(int):
     value = 0
     def __init__(self, value = 0):
         self.value = value
 
     def set_value(self, value):
         self.value = value
+
+    def __index__(self):
+        return self.value
+    
+    def __int__(self):
+        return self.value
 """
 
+
 real = float
-krl_int = int
 char = str
 
 class krl_list(collections.deque):
@@ -57,12 +66,8 @@ def _not(value):
 class generic_struct():
     def __init__(self, *args, **kwargs):
         for k,v in kwargs.items():
-            if type(v) == int:
-                kwargs[k] = krl_int(v)
             if type(v) == float:
                 kwargs[k] = real(v)
-            if type(v) == char:
-                kwargs[k] = char(v)
 
         self.__dict__.update(kwargs)
         #in the case where a structure (inheriting a generic_struct) gets as parameter a generic_struct
@@ -86,14 +91,25 @@ class enum():
     actual_value = None
     def __init__(self, value=None): #args contains values
         if not value is None:
-            self.actual_value = self.values_dict[value]
+            #self.actual_value = self.values_dict[value]
+            self.actual_value = value
 
     def __call__(self, value = None):
         ret = self.__class__()
         if not arg is None:
-            self.actual_value = self.values_dict[value]
+            #self.actual_value = self.values_dict[value]
+            self.actual_value = value
             ret.actual_value = self.actual_value
         return ret
+
+    def __eq__(self, other):
+        if self.actual_value==other:
+            return True
+        else:
+            return False
+
+    def __repr__(self):
+        return self.actual_value
 
     def set_value(self, value):
         self.actual_value = value
@@ -124,7 +140,8 @@ class multi_dimensional_array():
         
     def __setitem__(self, indexes, value):
         if not (type(indexes) == int) and len(indexes) == 1:
-            self.data[indexes[0]-1].set_value(value)
+            #self.data[indexes[0]-1].set_value(value)
+            self.data[indexes[0]-1] = value
         elif type(indexes) == int:
             self.data[indexes-1] = self._type(value)
         else:
@@ -146,17 +163,22 @@ def _geometric_addition_operator(left_operant, right_operand):
 
 def fake_func():
     pass
+
 interrupt_flags = {}
 interrupts = {} #this contains function pointers to interrupt subprograms, these have to be called by thread
 for i in range(1, 129):
     interrupt_flags[i] = False #activated by interrupt on
     interrupts[i] = fake_func 
 
+""" defined in operate.dat
 DOLLAR__timer = {}
 DOLLAR__timer_stop = {}
-for i in range(1, 129):
+
+for i in range(1, global_timers_count+1):
     DOLLAR__timer_stop[i] = True #activated by interrupt on
     DOLLAR__timer[i] = 0 
+"""
+global_timers_count = 64
 
 DOLLAR__inputs = {}
 DOLLAR__outputs = {}
@@ -178,8 +200,31 @@ call_stack = int
 class Robot():
     _do_not_stop_ADVANCE_on_next_IO = False
 
+    internal_stop_flag = False
+    
     def __init__(self, *args, **kwargs):
-        pass
+        self.clock()
+        self.check_interrupts()
+    
+    def clock(self):
+        global global_timers_count
+        try:
+            import operate
+            for i in range(1, global_timers_count+1):
+                if not operate.DOLLAR__timer_stop[i]:
+                    operate.DOLLAR__timer[i] = operate.DOLLAR__timer[i] + 1
+        except:
+            #timers are defined later in operate.dat
+            traceback.print_exc()
+        if not self.internal_stop_flag:
+            threading.Timer(0.001, self.clock).start()
+
+    def check_interrupts(self):
+        global interrupts
+        for iterrupt_number, interrupt_function in interrupts.items():
+            interrupt_function()
+        if not self.internal_stop_flag:
+            threading.Timer(0.001, self.check_interrupts).start()
 
     def do_not_stop_ADVANCE_on_next_IO(self):
         self._do_not_stop_ADVANCE_on_next_IO = True
@@ -198,5 +243,8 @@ class Robot():
 
     def circ(self, position, apo=None):
         print("CIRC %s %s"%(position, apo))
+
+    def __del__(self):
+        self.internal_stop_flag = True
 
 robot = Robot()
