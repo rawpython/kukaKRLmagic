@@ -53,6 +53,7 @@ instructions_defs = {
     'interrupt decl':       generic_regexes.a_line_containing( generic_regexes.global_def + "INTERRUPT +DECL +" + generic_regexes.int_or_real_number + " +WHEN +(.+) +DO +(.+)" ),
     'interrupt on':         generic_regexes.a_line_containing("INTERRUPT +ON +" + generic_regexes.int_or_real_number ),
     'interrupt off':        generic_regexes.a_line_containing("INTERRUPT +OFF +" + generic_regexes.int_or_real_number ),
+    'resume':               generic_regexes.a_line_containing("RESUME"),
 
     'trigger distance':     generic_regexes.a_line_containing( "TRIGGER +WHEN +DISTANCE *= *(0|1) +DELAY *= *" + generic_regexes.int_or_real_number + " +DO +(.+)" ),
     'trigger path':         generic_regexes.a_line_containing( "TRIGGER +WHEN +PATH *= *(.+) +DELAY *= *" + generic_regexes.int_or_real_number + " +DO +(.+)" ),
@@ -83,7 +84,7 @@ class KRLGenericParser(gui.Container):
     indent_comments = True
     def __init__(self, permissible_instructions_dictionary):
         self.permissible_instructions_dictionary = collections.OrderedDict(permissible_instructions_dictionary)
-        standard_permissible_instructions = ['function return','meta instruction','halt','switch','lin','ptp','circ','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','function call','wait sec','wait for', 'ext', 'extfct', 'signal decl','continue',]
+        standard_permissible_instructions = ['function return','meta instruction','halt','switch','lin','ptp','circ','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','function call','wait sec','wait for', 'ext', 'extfct', 'signal decl','continue','resume',]
         self.permissible_instructions_dictionary.update({k:v for k,v in instructions_defs.items() if k in standard_permissible_instructions})
 
         gui.Container.__init__(self)
@@ -289,13 +290,17 @@ class KRLGenericParser(gui.Container):
 
         if instruction_name == 'interrupt decl':
             interrupt_declaration_template = \
-                "def %(interrupt_name)s():\n" \
+                "def fcond%(interrupt_name)s():\n" \
                 "    if interrupt_flags[%(interrupt_number)s]:\n" \
-                "        if %(condition)s:\n" \
-                "            %(instruction)s\n" \
-                "interrupts[%(interrupt_number)s] = %(interrupt_name)s\n"
+                "        return (%(condition)s)\n" \
+                "    return False\n" \
+                "def fcall%(interrupt_name)s():\n" \
+                "    %(instruction)s\n" \
+                "interrupts[%(interrupt_number)s] = InterruptData(fcall%(interrupt_name)s, threads_callstack[threading.currentThread][-1], fcond%(interrupt_name)s)\n"
             is_global, interrupt_number, condition, instruction = match_groups
             is_global = not is_global is None 
+            node = InterruptObject(interrupt_number, is_global, condition, instruction)
+            self.get_parent_function().append(node)
             interrupt_declaration = interrupt_declaration_template%{'interrupt_number':interrupt_number, 'condition':condition, 'instruction':instruction, 'interrupt_name':'_interrupt%s'%interrupt_number}
             translation_result_tmp.extend(interrupt_declaration.split('\n'))
             #translation_result_tmp.append('interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
@@ -306,6 +311,9 @@ class KRLGenericParser(gui.Container):
             interrupt_number = match_groups[0]
             translation_result_tmp.append('interrupt_flags[%s] = False'%interrupt_number)
         
+        if instruction_name == 'resume':
+            translation_result_tmp.append("robot.resume_interrupt()")
+
         if instruction_name == 'trigger distance':
             trigger_distance_declaration_template = \
                 "def %(trigger_name)s():\n" \
@@ -664,10 +672,24 @@ class KRLStatementSwitch(KRLGenericParser):
         return translation_result_tmp, file_lines 
 
 
+class InterruptObject(gui.Widget):
+    number = 0
+    is_global = False
+    condition = ''
+    instruction = ''
+    def __init__(self, number, is_global, condition, instruction, *args, **kwargs):
+        gui.Widget.__init__(self, *args, **kwargs)
+        self.number = number
+        self.is_global = is_global
+        self.condition = condition
+        self.instruction = instruction
+
+
 class KRLProcedureParser(KRLGenericParser):
     name = ""
     local_variables = None #dictionary variable_name:type
     global_variables = None #list of variable_name
+    declared_interrupts = None #dictionary interrupt_number:InterruptObject
     param_names = None
     callers_list = None
     calling_list = None
@@ -682,6 +704,7 @@ class KRLProcedureParser(KRLGenericParser):
         self.name = name
         self.local_variables = {}
         self.global_variables = []
+        self.declared_interrupts = {}
         self.param_names = param_names
         self.callers_list = []
         self.calling_list = []

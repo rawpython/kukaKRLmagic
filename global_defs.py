@@ -4,6 +4,7 @@ import functools
 import threading
 import traceback
 import sys
+import _thread
 
 true = True
 false = False
@@ -164,20 +165,54 @@ def _geometric_addition_operator(left_operant, right_operand):
 def fake_func():
     pass
 
+
+def interruptable_function_decorator(func):
+    """ A decorator to handle interrupts 
+        robot functions have to be decorated with this decorator to make it possible trace the calling stack and
+        properly handle interrupts
+    """
+    def interruptable_function(*args, **kwargs):
+        try:
+            threads_callstack[threading.currentThread].append(func)
+            func(*args, **kwargs)
+            mem = threads_callstack[threading.currentThread].pop()
+        except KeyboardInterrupt:
+            mem = threads_callstack[threading.currentThread].pop()
+            #the resume makes it the interpreter to move up to the interrupt declaration level
+            # if the level does not correspont to the interrupt level, raise again the Exception to move upper
+            if len(threads_callstack[threading.currentThread]) == 0:
+                print("Program structure inadmissible for RESUME")
+            if not threads_callstack[threading.currentThread][-1] == robot.interrupt_actually_triggered.function_in_which_it_is_defined:
+                raise(KeyboardInterrupt('asd'))
+            
+    return interruptable_function
+
+
 interrupt_flags = {}
+interrupt_rising_edge_flags = {} #TODO for each interrupt, here is stored if the condition is already triggered
 interrupts = {} #this contains function pointers to interrupt subprograms, these have to be called by thread
+class InterruptData():
+    function_to_call = None
+    function_in_which_it_is_defined = None
+    function_to_get_condition_status = None
+    condition_status_mem = False
+    def __init__(self, fcall, fdef, fcond):
+        self.function_to_call = fcall
+        self.function_in_which_it_is_defined = fdef
+        self.function_to_get_condition_status = fcond
+        self.condition_status_mem = False
+    def probe_interrupt(self):
+        s = self.function_to_get_condition_status()
+        if s and not self.condition_status_mem:
+            robot.interrupt_actually_triggered = self
+            self.function_to_call()
+        self.condition_status_mem = s
+
 for i in range(1, 129):
     interrupt_flags[i] = False #activated by interrupt on
-    interrupts[i] = fake_func 
+    interrupts[i] = InterruptData(fake_func, fake_func, fake_func)
 
-""" defined in operate.dat
-DOLLAR__timer = {}
-DOLLAR__timer_stop = {}
 
-for i in range(1, global_timers_count+1):
-    DOLLAR__timer_stop[i] = True #activated by interrupt on
-    DOLLAR__timer[i] = 0 
-"""
 global_timers_count = 64
 
 DOLLAR__inputs = {}
@@ -202,6 +237,8 @@ class Robot():
 
     internal_stop_flag = False
     
+    interrupt_actually_triggered = None
+
     def __init__(self, *args, **kwargs):
         self.clock()
         self.check_interrupts()
@@ -221,10 +258,15 @@ class Robot():
 
     def check_interrupts(self):
         global interrupts
-        for iterrupt_number, interrupt_function in interrupts.items():
-            interrupt_function()
+        for iterrupt_number, interrupt_def in interrupts.items():
+            interrupt_def.probe_interrupt()
         if not self.internal_stop_flag:
             threading.Timer(0.001, self.check_interrupts).start()
+    def resume_interrupt(self): 
+        #this generate a KeyboardInterrupt to the main thread (the one that executes the robot program)
+        # the KeyboardInterrupt is correctly handled in interruptable_function_decorator
+        # to make it possible resume the thread at the correct point WOOOOW
+        _thread.interrupt_main()
 
     def do_not_stop_ADVANCE_on_next_IO(self):
         self._do_not_stop_ADVANCE_on_next_IO = True
@@ -248,3 +290,40 @@ class Robot():
         self.internal_stop_flag = True
 
 robot = Robot()
+
+"""
+STRUC PRO_IP CHAR NAME[32],INT SNR,CHAR NAME_C[32],INT SNR_C,CHAR NAME_C_TRL[32],INT SNR_C_TRL,BOOL I_EXECUTED,INT P_ARRIVED,CHAR P_NAME[24],CALL_STACK SI01,SI02,SI03,SI04,SI05,SI06,SI07,SI08,SI09,SI10
+
+name[]      Name of the module in which the interpreter is in the advance run
+snr         Number of the block in which the interpreter is in the advance run (usually not equal to the line number of the program)
+name_c[]    Name of the module in which the interpolator is in the main run
+snr_c       Number of the block in which the interpolator is in the main run
+i_executed  Indicates whether the block has already been executed by the interpreter (= TRUE) 
+p_arrived   Indicates where the robot is located on the path (only relevant for motion instructions)
+ 0: Arrived at the target or auxiliary point of the motion
+ 1: Target point not reached, i.e. robot is somewhere on the path
+ 2: Not relevant
+ 3: Arrived at the auxiliary point of a CIRC or SCIRC motion
+ 4: On the move in the section between the start and the auxiliary point
+p_name[]    Name or aggregate of the target or auxiliary point at which the robot is located
+SI01 … SI10 Caller stack in which the interpreter is situated
+"""
+
+#STRUC PROG_INFO CHAR SEL_NAME[32],PRO_STATE P_STATE,PRO_MODE P_MODE,CHAR PRO_IP_NAME[32],INT PRO_IP_SNR
+# SEL_NAME name of the selected program
+# PRO_IP_NAME[] name of the current module
+# PRO_IP_SNR current block in the current module
+
+submit_interpreter_thread = None
+robot_interpreter_thread = None
+
+threads_callstack = {} #thread:functionpointer[]
+threads_callstack[threading.currentThread] = []
+#def get_current_pro_ip():
+#    if threading.currentThread == submit_interpreter_thread:
+#        return DOLLAR_pro_ip0
+#    return DOLLAR_pro_ip1
+
+
+
+

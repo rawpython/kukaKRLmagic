@@ -36,6 +36,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             param_names = [re.sub(generic_regexes.index_3d, '', x) for x in param_names]
             is_global = not match_groups[0] is None 
             procedure_name = match_groups[2]
+            translation_result_tmp.append("@global_defs.interruptable_function_decorator")
             translation_result_tmp.append( "def " + procedure_name + "(" + ", ".join(param_names) + "):" )
             
             node = parser_instructions.KRLProcedureParser( procedure_name, param_names )
@@ -51,6 +52,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             procedure_name = match_groups[3]
             is_global = not match_groups[0] is None 
             return_value_type_name = match_groups[2]
+            translation_result_tmp.append("@global_defs.interruptable_function_decorator")
             translation_result_tmp.append( "def " + procedure_name + "(" + ", ".join(param_names) + "): #function returns %s"%return_value_type_name )
 
             node = parser_instructions.KRLFunctionParser( procedure_name, param_names, return_value_type_name )

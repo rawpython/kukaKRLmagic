@@ -82,6 +82,7 @@ END
 
 def print_interrupt()
     print("interrupt")
+    resume
 end
 
 DEF marca(FRAME_TUBO:IN, DIAMETRO:IN)
