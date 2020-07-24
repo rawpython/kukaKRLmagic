@@ -78,6 +78,88 @@ class generic_struct():
             if issubclass(type(args[0]),generic_struct):
                 self.__dict__.update(args[0].__dict__)
     
+    #geometric addition
+    def __add__(self, other):
+        """ Tests on robot
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+            result
+            {X 11.000000, Y 22.000000, Z 33.000000, A 0.000000, B 0.000000, C 0.000000} 
+            {X 8.000000, Y 21.000000, Z 33.000000, A 90.000000, B 0.000000, C 0.000000} 
+            {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
+            {X 11.000000, Y 17.000000, Z 32.000000, A 0.000000, B 0.000000, C 90.000000} 
+            {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
+
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+            result
+            {X 11.000000, Y 22.000000, Z 33.000000, A 10.000000, B 20.000000, C 30.000000} 
+            {X 8.000000, Y 21.000000, Z 33.000000, A 100.000000, B 20.000000, C 30.000000} 
+            {X 13.000000, Y 22.000000, Z 29.000000, A 154.000000, B 67.7312, C -177.273000} 
+            {X 11.000000, Y 17.000000, Z 32.000000, A 20.283, B -9.3912, C 116.548} 
+            {X 13.000000, Y 22.000000, Z 29.000000, A 154.494, B 67.7312, C -177.273} 
+        """
+        import math
+        ret = generic_struct(self)
+        a = ret.a
+        x = math.cos(a*math.pi/180.0 + math.atan2(other.y, other.x))*math.sqrt(other.x**2 + other.y**2)
+        y = math.sin(a*math.pi/180.0 + math.atan2(other.y, other.x))*math.sqrt(other.x**2 + other.y**2)
+        other.x = x
+        other.y = y
+
+        b = math.cos(-ret.a*math.pi/180.0 + math.atan2(ret.c, ret.b))*math.sqrt(ret.b**2 + ret.c**2)
+        c = math.sin(-ret.a*math.pi/180.0 + math.atan2(ret.c, ret.b))*math.sqrt(ret.b**2 + ret.c**2)
+
+        x = math.cos(-b*math.pi/180.0 + math.atan2(other.z, other.x))*math.sqrt(other.x**2 + other.z**2)
+        z = math.sin(-b*math.pi/180.0 + math.atan2(other.z, other.x))*math.sqrt(other.x**2 + other.z**2)
+        other.x = x
+        other.z = z
+
+        #c = math.sin(b*math.pi/180.0 + math.atan2(ret.c, ret.b))*math.sqrt(ret.b**2 + ret.c**2)
+
+        y = math.cos(c*math.pi/180.0 + math.atan2(other.z, other.y))*math.sqrt(other.y**2 + other.z**2)
+        z = math.sin(c*math.pi/180.0 + math.atan2(other.z, other.y))*math.sqrt(other.y**2 + other.z**2)
+        other.y = y
+        other.z = z
+
+        """
+        _a = self.a + other.a
+        _b = math.cos(a*math.pi/180.0 + math.atan2(other.c, other.b))*math.sqrt(other.b**2 + other.c**2)
+        _c = math.sin(a*math.pi/180.0 + math.atan2(other.c, other.b))*math.sqrt(other.b**2 + other.c**2)
+
+        _a = math.cos(a*math.pi/180.0 + math.atan2(other.b, other.a))*math.sqrt(other.a**2 + other.b**2)
+        _b = self.b + other.b
+        _c = math.sin(a*math.pi/180.0 + math.atan2(other.b, other.a))*math.sqrt(other.a**2 + other.b**2)
+
+        _a = math.cos(a*math.pi/180.0 + math.atan2(other.c, other.a))*math.sqrt(other.a**2 + other.c**2)
+        _b = math.sin(a*math.pi/180.0 + math.atan2(other.c, other.a))*math.sqrt(other.a**2 + other.c**2)
+        _c = self.c + other.c
+        """
+        from scipy.spatial.transform import Rotation as R
+        r1 = R.from_euler('zyx', [0,90,0], True)
+        r2 = R.from_euler('zyx', [10,20,30], True)
+        r3 = r2*r1
+        _a, _b, _c [(x * 180.0/math.pi) for x in  r3.as_euler('zyx')]
+        #[154.49444973901745, 67.73125550470313, -122.72683044319639]
+        #other.x = math.cos(self.a*math.pi/180.0)*other.x
+        #other.y = math.cos(self.a*math.pi/180.0)*other.y
+        ret.x = ret.x + other.x
+        ret.y = ret.y + other.y
+        ret.z = ret.z + other.z
+        ret.a = _a
+        ret.b = _b
+        ret.c = _c
+        return ret
+
+    def __repr__(self):
+        return "{%s}"%( ', '.join(["%s:%s"%(k, v) for k, v in self.__dict__.items()]) )
+
     def set_value(self, value):
         self.__dict__.update(value.__dict__)
     
@@ -158,9 +240,6 @@ class multi_dimensional_array():
         for i in range(0, len(value)):
             self.data[i] = value[i]
     
-
-def _geometric_addition_operator(left_operant, right_operand):
-    return
 
 def fake_func():
     pass
@@ -267,6 +346,9 @@ class Robot():
         # the KeyboardInterrupt is correctly handled in interruptable_function_decorator
         # to make it possible resume the thread at the correct point WOOOOW
         _thread.interrupt_main()
+
+    def wait_sec(self, t):
+        time.sleep(t)
 
     def do_not_stop_ADVANCE_on_next_IO(self):
         self._do_not_stop_ADVANCE_on_next_IO = True

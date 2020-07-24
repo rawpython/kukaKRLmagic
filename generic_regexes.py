@@ -26,13 +26,15 @@ int_or_real_number = r"((?:\+|-)?[0-9]+(?:\.[0-9]+)?)"
 re_string = '((?!r)"[^"]+")' #KRL strings can contain special sequences for python like %s, and so it is required to prepend r""
 re_string_python = '(r"[^"]+")'
 re_binary_number = "'b([0-1]+)'"
-re_geometric_addition_operator = r"([^:=,]+:[^:,]+)"
+
 enum_value = '(#[^ ,\[\]\(\)\{\}\+\-\*/\'\"]+)'
 
 
 def a_line_containing(keyword):
     return line_begin + keyword + line_end
 
+variable_or_function_call_with_params = nc(variable_name + " *(?:\( *[^\(\):]* *\))?")
+re_geometric_addition_operator = c(variable_or_function_call_with_params + ':' + variable_or_function_call_with_params) #r"([^:=,]+:[^:,]+)"
 
 krl_tokes_to_python = {
     r'\$IN':  '$inputs',
@@ -128,10 +130,12 @@ def replace_geometric_operator(code_line):
         is_not_a_string = (re.search(re_string_python, code_line) == None)
         if (not geoadd is None) and is_not_a_string:
             span = geoadd.span()
-            operands = geoadd.groups()[0]
-            operands = operands.split(':')
+            #operands = geoadd.groups()[0]
+            #operands = operands.split(':')
             to_be_replaced = code_line[span[0]:span[1]]
-            code_line = code_line.replace(to_be_replaced, "_geometric_addition_operator(%s, %s)"%(operands[0], operands[1]))
+            replacement = to_be_replaced.replace(':', '+')
+            #code_line = code_line.replace(to_be_replaced, "_geometric_addition_operator(%s, %s)"%(operands[0], operands[1]))
+            code_line = code_line.replace(to_be_replaced, replacement)
         else:
             break
     return code_line

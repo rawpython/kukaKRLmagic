@@ -21,6 +21,19 @@ CHAR string[3,20]
     $timer[1] = 0
     $timer_stop[1] = false
     
+    print("geometric addition operation:")
+    ;;print({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+    ;print({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+    ;print({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+    ;print({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+    ;print({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+    ;print({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0})
+
+    print({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
+    print({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
+    print({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
+    print({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
+    print({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
 
     string[1,] = "potato"
     string[2,] = "pizza"
@@ -78,6 +91,8 @@ CHAR string[3,20]
     marca(frame_tubi[12], 275)
     marca(frame_tubi[13], 275)
     marca(frame_tubi[14], 275)
+
+    
 END
 
 def print_interrupt()

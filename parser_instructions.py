@@ -63,7 +63,7 @@ instructions_defs = {
 
     'function call':        generic_regexes.a_line_containing( generic_regexes.variable_name + " *\( *(.*) *\)" ),
 
-    'enum definition':                 generic_regexes.a_line_containing( generic_regexes.global_def + "ENUM +([^ ]+) +.*" ),
+    'enum definition':      generic_regexes.a_line_containing( generic_regexes.global_def + "ENUM +([^ ]+) +.*" ),
 
     'wait sec':             generic_regexes.a_line_containing( "WAIT +SEC +" + generic_regexes.int_or_real_number ),
 
@@ -148,7 +148,7 @@ class KRLGenericParser(gui.Container):
 
 
 
-        if 'GLOBAL DEF SET_CM_PRO_DEFAULT()' in code_line_original:
+        if '$BASE=LK(MACHINE_DEF[MACH_IDX].ROOT, ' in code_line_original:
             print("brakepoint")
 
 
@@ -156,9 +156,9 @@ class KRLGenericParser(gui.Container):
 
 
 
-
-        if not instruction_name in ['ext', 'extfct']:
-            code_line = generic_regexes.replace_geometric_operator(code_line)
+        if ':' in code_line:
+            if instruction_name in ['variable assignment', 'function call', 'return', 'lin', 'ptp', 'circ']:
+                code_line = generic_regexes.replace_geometric_operator(code_line)
 
         if instruction_name == 'meta instruction':
             return translation_result_tmp, file_lines
@@ -431,17 +431,16 @@ class KRLGenericParser(gui.Container):
                 element_list_with_values.append("'%s':%s"%(elem, i))
                 i = i + 1
             #translation_result_tmp.append('%s = global_defs.enum(%s, "%s", %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', enum_name, ', '.join(element_list_with_values)))
-            enum_template = """
-class %(enum_name)s(global_defs.enum): #enum
-    enum_name = '%(enum_name)s'
-    values_dict = {%(values)s}
-"""
+            enum_template = \
+                "class %(enum_name)s(global_defs.enum): #enum\n" \
+                "    enum_name = '%(enum_name)s'\n" \
+                "    values_dict = {%(values)s}"
             #translation_result_tmp.append('%s = global_defs.enum(%s, "%s")'%(enum_name, ', '.join(element_list_with_values)))
             translation_result_tmp.append(enum_template%{'enum_name': enum_name, 'values':', '.join(element_list_with_values)})
             
         if instruction_name == 'wait sec':
             t = match_groups[0]
-            translation_result_tmp.append('time.sleep(%s)'%t)
+            translation_result_tmp.append('robot.wait_sec(%s)'%t)
 
         if instruction_name == 'wait for':
             condition = match_groups[0]
