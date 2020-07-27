@@ -34,21 +34,23 @@ class KRLProject():
         self.scandir(self.dirs['R1'], {}, self.r1_files)
         self.scandir(self.dirs['STEU'], {}, self.steu_files)
 
+        """
+        parser_module.KRLModule('kuka_internals', self.all_files['kuka_internals.dat'], src_path_and_file=self.all_files['kuka_internals.src'], imports_to_prepend = _i('global_defs')),
+        parser_module.KRLModule('operate', self.r1_files['operate.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('kuka_internals')),
+        parser_module.KRLModule('operate_r1', self.r1_files['operate_r1.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
+        parser_module.KRLModule('steu_option', self.steu_files['$option.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
+        parser_module.KRLModule('machine_dat', self.r1_files['$machine.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
+        parser_module.KRLModule('robcor_dat', self.r1_files['$robcor.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1')),
+        parser_module.KRLModule('p00', self.r1_files['p00.dat'], src_path_and_file=self.r1_files['p00.src'], imports_to_prepend = _i('global_defs') + _i('operate')),
+        parser_module.KRLModule('p00_subm', '', src_path_and_file=self.r1_files['p00_subm.src'], imports_to_prepend = _i('global_defs')),
+        parser_module.KRLModule('config', self.r1_files['$config.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1') + _i('p00') + _i('p00_subm')),
+        parser_module.KRLModule('collmonlib', self.r1_files['collmonlib.dat'], src_path_and_file=self.r1_files['collmonlib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option')),
+        parser_module.KRLModule('bas', '', src_path_and_file=self.r1_files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option') + _i('collmonlib')),
+        
+        parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.r1_files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
+        """
+
         self.modules.extend( [
-            
-            parser_module.KRLModule('kuka_internals', self.all_files['kuka_internals.dat'], src_path_and_file=self.all_files['kuka_internals.src'], imports_to_prepend = _i('global_defs')),
-            parser_module.KRLModule('operate', self.r1_files['operate.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('kuka_internals')),
-            parser_module.KRLModule('operate_r1', self.r1_files['operate_r1.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
-            parser_module.KRLModule('steu_option', self.steu_files['$option.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
-            parser_module.KRLModule('machine_dat', self.r1_files['$machine.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate')),
-            parser_module.KRLModule('robcor_dat', self.r1_files['$robcor.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1')),
-            parser_module.KRLModule('p00', self.r1_files['p00.dat'], src_path_and_file=self.r1_files['p00.src'], imports_to_prepend = _i('global_defs') + _i('operate')),
-            parser_module.KRLModule('p00_subm', '', src_path_and_file=self.r1_files['p00_subm.src'], imports_to_prepend = _i('global_defs')),
-            parser_module.KRLModule('config', self.r1_files['$config.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('operate') + _i('operate_r1') + _i('p00') + _i('p00_subm')),
-            parser_module.KRLModule('collmonlib', self.r1_files['collmonlib.dat'], src_path_and_file=self.r1_files['collmonlib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option')),
-            parser_module.KRLModule('bas', '', src_path_and_file=self.r1_files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option') + _i('collmonlib')),
-            
-            parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.r1_files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
             parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')) ])
 
     def get_module(self, name):

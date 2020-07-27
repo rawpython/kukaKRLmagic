@@ -3,6 +3,7 @@ import os
 import generic_regexes
 import flow_chart_graphics
 import collections
+import remi.gui as gui
 
 """
     This parses dat and src files
@@ -155,8 +156,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
 
 
-
-
+        
 
         if ':' in code_line:
             if instruction_name in ['variable assignment', 'function call', 'return', 'lin', 'ptp', 'circ']:
@@ -167,6 +167,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
         if instruction_name == 'halt':
             translation_result_tmp.append("assert(False) # halt")
+            node = flow_chart_graphics.FlowInstruction('HALT')
+            self.append(node)
 
         if instruction_name == 'switch':
             value_to_switch = match_groups[0]
@@ -182,6 +184,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
             translation_result_tmp.append("global_defs.robot.lin(%s)"%position)
+            node = flow_chart_graphics.FlowInstruction('LIN %s'%position)
+            self.append(node)
 
         if instruction_name == 'ptp':
             position = match_groups[0].strip()
@@ -189,6 +193,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
             translation_result_tmp.append("global_defs.robot.ptp(%s)"%position)
+            node = flow_chart_graphics.FlowInstruction('PTP %s'%position)
+            self.append(node)
 
         if instruction_name == 'circ':
             position = match_groups[0].strip().lower()
@@ -196,6 +202,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
             translation_result_tmp.append("global_defs.robot.circ(%s)"%position)
+            node = flow_chart_graphics.FlowInstruction('CIRC %s'%position)
+            self.append(node)
 
         if instruction_name == 'struc declaration':
             is_global = not match_groups[0] is None 
@@ -309,12 +317,19 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         if instruction_name == 'interrupt on':
             interrupt_number = match_groups[0]
             translation_result_tmp.append('interrupt_flags[%s] = True'%interrupt_number)
+            node = flow_chart_graphics.FlowInstruction('INTERRUPT ON %s'%interrupt_number)
+            self.append(node)
+
         if instruction_name == 'interrupt off':
             interrupt_number = match_groups[0]
             translation_result_tmp.append('interrupt_flags[%s] = False'%interrupt_number)
-        
+            node = flow_chart_graphics.FlowInstruction('INTERRUPT OFF %s'%interrupt_number)
+            self.append(node)
+
         if instruction_name == 'resume':
             translation_result_tmp.append("robot.resume_interrupt()")
+            node = flow_chart_graphics.FlowInstruction('RESUME')
+            self.append(node)
 
         if instruction_name == 'trigger distance':
             trigger_distance_declaration_template = \
@@ -327,6 +342,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             uuid = uuid + 1
             trigger_declaration = trigger_distance_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay}
             translation_result_tmp.extend(trigger_declaration.split('\n'))
+            node = flow_chart_graphics.FlowInstruction('TRIGGER WHEN DISTANCE=%s DELAY=%s DO %s'%(distance, delay, instruction))
+            self.append(node)
             
         if instruction_name == 'trigger path':
             trigger_path_declaration_template = \
@@ -340,6 +357,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             uuid = uuid + 1
             trigger_declaration = trigger_path_declaration_template%{'trigger_name':trigger_func_name, 'instruction':instruction, 'delay':delay, 'path':path}
             translation_result_tmp.extend(trigger_declaration.split('\n'))
+            node = flow_chart_graphics.FlowInstruction('TRIGGER WHEN PATH=%s DELAY=%s DO %s'%(path, delay, instruction))
+            self.append(node)
 
         if instruction_name == 'variable declaration':
             """
@@ -416,10 +435,15 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 else:
                     translation_result_tmp.append("%s = %s"%(var, value))
 
+            node = flow_chart_graphics.FlowInstruction('%s = %s'%(var if not is_array else "%s[%s]"%(var, size), value))
+            self.append(node)
+
 
         if instruction_name == 'function call':
             self.get_parent_function().calling_list.append(match_groups[0])
             translation_result_tmp.append(code_line.strip())
+            node = flow_chart_graphics.FlowInstruction('CALL %s'%match_groups[0])
+            self.append(node)
 
         if instruction_name == 'enum definition':
             is_global = not match_groups[0] is None 
@@ -443,10 +467,14 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         if instruction_name == 'wait sec':
             t = match_groups[0]
             translation_result_tmp.append('robot.wait_sec(%s)'%t)
+            node = flow_chart_graphics.FlowInstruction('WAIT SEC %s'%t)
+            self.append(node)
 
         if instruction_name == 'wait for':
             condition = match_groups[0]
             translation_result_tmp.append('while not (%s):time.sleep(0.1)'%condition)
+            node = flow_chart_graphics.FlowInstruction('WAIT FOR %s'%condition)
+            self.append(node)
 
         if instruction_name == 'ext':
             procedure_name = match_groups[0]
@@ -475,9 +503,13 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         if instruction_name == 'function return':
             value = match_groups[0]
             translation_result_tmp.append("return" if value is None else ("return " + value))
+            node = flow_chart_graphics.FlowInstruction('RETURN %s'%value)
+            self.append(node)
 
         if instruction_name == 'continue':
             translation_result_tmp.append('global_defs.robot.do_not_stop_ADVANCE_on_next_IO()')
+            node = flow_chart_graphics.FlowInstruction('CONTINUE')
+            self.append(node)
         
         return translation_result_tmp, file_lines 
 
@@ -575,7 +607,7 @@ class KRLStatementFor(KRLGenericParser):
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
-        self.text = 'FOR %s=%s TO %s%s'%(variable, value_begin, value_end, '' if value_step is none else 'STEP %s'%value_step)
+        self.text = 'FOR %s=%s TO %s%s'%(variable, value_begin, value_end, '' if value_step is None else 'STEP %s'%value_step)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
@@ -593,18 +625,88 @@ class KRLStatementFor(KRLGenericParser):
 
         return translation_result_tmp, file_lines 
 
+    def recalc_size_and_arrange_children(self):
+        w, h = super(KRLStatementFor, self).recalc_size_and_arrange_children()
+        
+        h = h + 30*3 #height is increased by 30 for bottom lines
+        w = w + 30*2 #to give margins to return and endfor lines
+        gui._MixinSvgSize.set_size(self, w, h)
+
+        self.set_viewbox(-w/2, 0, w, h)
+
+        return w, h
+
+    def draw(self):
+        self.drawings_height = 100
+        self.drawings_width = max( len(self.text) * self.text_letter_width, 200 )
+        w, h = self.recalc_size_and_arrange_children()
+        
+        line_length = 30
+        #top vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
+
+        #central box line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.ForBox(-self.drawings_width/2, line_length, self.drawings_width, self.drawings_height-line_length), 'box') )
+
+        #line returns
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-line_length*3, 0, h-line_length*2), 'lret1') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-line_length*2, -w/2, h-line_length*2), 'lret2') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/2, h-line_length*2, -w/2, (self.drawings_height-line_length)/2 + line_length), 'lret3') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/2, (self.drawings_height-line_length)/2 + line_length, -self.drawings_width/2, (self.drawings_height-line_length)/2 + line_length), 'lret4') )
+
+        #line endfor returns
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(self.drawings_width/2, (self.drawings_height-line_length)/2 + line_length, w/2, (self.drawings_height-line_length)/2 + line_length), 'lendfor1') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/2, (self.drawings_height-line_length)/2 + line_length, w/2, h-line_length*1), 'lendfor2') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-line_length*1, w/2, h-line_length*1), 'lendfor3') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-line_length*1, 0, h), 'lendfor4') )
+        
+
+        #text
+        txt = gui.SvgText(0, (self.drawings_height-line_length)/2 + line_length, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt, 'text') )
+
+        self.children['line_top'].set_stroke(1, 'black')
+        self.children['lret1'].set_stroke(1, 'black')
+        self.children['lret2'].set_stroke(1, 'black')
+        self.children['lret3'].set_stroke(1, 'black')
+        self.children['lret4'].set_stroke(1, 'black')
+
+        self.children['lendfor1'].set_stroke(1, 'black')
+        self.children['lendfor2'].set_stroke(1, 'black')
+        self.children['lendfor3'].set_stroke(1, 'black')
+        self.children['lendfor4'].set_stroke(1, 'black')
+
+        self.children['box'].set_stroke(1, 'black')
+
 
 class KRLStatementIf(KRLGenericParser):
     condition = ""
     pass_to_be_added = True
+    nodes_yes = None
+    nodes_no = None
+    yes_done = False
     def __init__(self, condition):
         self.condition = condition
         permissible_instructions = ['else','if end']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
 
+        self.nodes_yes = []
+        self.nodes_no = []
+
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
         self.text = 'IF %s'%(condition)
+
+    def append(self, v, *args, **kwargs):
+        super(KRLStatementIf, self).append(v, *args, **kwargs)
+        if not self.yes_done:
+            self.nodes_yes.append(v)
+        else:
+            self.nodes_no.append(v)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
@@ -613,6 +715,7 @@ class KRLStatementIf(KRLGenericParser):
             self.pass_to_be_added = False
 
         if instruction_name == 'else':
+            self.yes_done = True
             if self.pass_to_be_added:
                 translation_result_tmp.append('    pass')
             translation_result_tmp.append("else:")
@@ -629,6 +732,96 @@ class KRLStatementIf(KRLGenericParser):
             translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         return translation_result_tmp, file_lines 
+
+    def recalc_size_and_arrange_children(self):
+        #remove all drawings prior to redraw it
+        for k in self.drawings_keys:
+            self.remove_child(self.children[k])
+        self.drawings_keys = []
+
+        w = max( len(self.text) * self.text_letter_width, 200 )
+        h = self.drawings_height
+
+        w_max = w
+        #estimate self width
+        for k in self._render_children_list:
+            v = self.children[k]
+            w_max = max(w_max, float(v.attr_width))
+
+        h_yes = h
+        for v in self.nodes_yes:
+            v.set_position(-float(v.attr_width)/2+w_max, h_yes)
+            h_yes = h_yes + float(v.attr_height) 
+
+        h_no = h
+        for v in self.nodes_no:
+            v.set_position(-float(v.attr_width)/2-w_max, h_no)
+            h_no = h_no + float(v.attr_height) 
+            
+        w_max = w_max * 3 #the width is x3 because it has components at left and at right
+
+        h = max(h_yes, h_no)
+        
+        h = h + 30 #height is increased by 30 for bottom lines
+
+        gui._MixinSvgSize.set_size(self, w_max, h)
+
+        self.set_viewbox(-w_max/2, 0, w_max, h)
+
+        return w_max, h
+
+    def draw(self):
+        self.drawings_height = 200
+        w, h = self.recalc_size_and_arrange_children()
+        
+        line_length = 30
+        #top vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
+
+        romboid_h = self.drawings_height-(line_length)
+        romboid_w = w/3
+        #right horizontal line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/3 , romboid_h/2+line_length), 'line_right_h') )
+
+        #left horizontal line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-romboid_w/2, romboid_h/2+line_length, -w/3 , romboid_h/2+line_length), 'line_left_h') )
+
+        #right vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, romboid_h/2+line_length, w/3 , self.drawings_height), 'line_right_v') )
+        #left vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, romboid_h/2+line_length, -w/3 , self.drawings_height), 'line_left_v') )
+
+
+        #right vertical line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, h-line_length, w/3, h), 'line_right_v_b') )
+        #left vertical line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-line_length, -w/3, h), 'line_left_v_b') )
+
+        #line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-1, w/3, h-1), 'line_bottom') )
+
+        #central box line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.Romboid(-romboid_w/2, line_length, romboid_w, romboid_h), 'box') )
+
+
+        #text
+        txt = gui.SvgText(0, romboid_h/2+line_length, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt, 'text') )
+
+        self.children['line_top'].set_stroke(1, 'black')
+        self.children['line_right_h'].set_stroke(1, 'black')
+        self.children['line_left_h'].set_stroke(1, 'black')
+        self.children['line_right_v'].set_stroke(1, 'black')
+        self.children['line_left_v'].set_stroke(1, 'black')
+        self.children['line_right_v_b'].set_stroke(1, 'black')
+        self.children['line_left_v_b'].set_stroke(1, 'black')
+        self.children['line_bottom'].set_stroke(1, 'black')
+
+        self.children['box'].set_stroke(1, 'black')
 
 
 class KRLStatementSwitch(KRLGenericParser):
@@ -717,7 +910,6 @@ class KRLProcedureParser(KRLGenericParser):
         self.calling_list = []
 
         self.text = 'PROCEDURE %s(%s)'%(name, ', '.join(param_names))
-
     
     def parse(self, file_lines):
         # Parses the file lines up to the procedure end
@@ -757,6 +949,27 @@ class KRLProcedureParser(KRLGenericParser):
 
         return translation_result_tmp, file_lines
 
+    #overloads FlowInstruction.draw§()
+    def draw(self):
+        self.drawings_height = 50
+        w, h = self.recalc_size_and_arrange_children()
+        
+        ellispe_width = max( len(self.text) * self.text_letter_width, 200 )
+
+        #central box
+        self.drawings_keys.append( self.append(gui.SvgEllipse(0, self.drawings_height/2, ellispe_width/2, self.drawings_height/2), 'box') )
+
+        #text
+        txt = gui.SvgText(0, self.drawings_height/2, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( self.append(txt, 'text') )
+
+        self.children['box'].set_stroke(1, 'black')
+        self.children['box'].set_fill('transparent')
+
 
 class KRLFunctionParser(KRLProcedureParser):
     return_type = None
@@ -765,4 +978,5 @@ class KRLFunctionParser(KRLProcedureParser):
         self.return_type = return_type
 
         self.text = 'FUNCTION %s %s(%s)'%(return_type, name, ', '.join(param_names))
+
         
