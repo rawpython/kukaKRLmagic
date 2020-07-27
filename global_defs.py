@@ -145,7 +145,7 @@ class generic_struct():
         r1 = R.from_euler('zyx', [0,90,0], True)
         r2 = R.from_euler('zyx', [10,20,30], True)
         r3 = r2*r1
-        _a, _b, _c [(x * 180.0/math.pi) for x in  r3.as_euler('zyx')]
+        _a, _b, _c = [(x * 180.0/math.pi) for x in  r3.as_euler('zyx')]
         #[154.49444973901745, 67.73125550470313, -122.72683044319639]
         #other.x = math.cos(self.a*math.pi/180.0)*other.x
         #other.y = math.cos(self.a*math.pi/180.0)*other.y

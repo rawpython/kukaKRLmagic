@@ -2,7 +2,7 @@ import re
 import os
 import generic_regexes
 import parser_instructions
-from remi import gui
+import flow_chart_graphics
 
 """
     This parses dat and src files
@@ -42,6 +42,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             node = parser_instructions.KRLProcedureParser( procedure_name, param_names )
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
+            self.draw()
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
             
@@ -58,6 +59,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             node = parser_instructions.KRLFunctionParser( procedure_name, param_names, return_value_type_name )
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
+            self.draw()
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
         
@@ -98,19 +100,19 @@ class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
         return translation_result_tmp, file_lines 
             
 
-class KRLModule(gui.Container):
+class KRLModule(flow_chart_graphics.FlowInstruction):
     name = ''
     module_dat = None   # KRLDat instance
     module_src = None   # KRLSrc instance
     def __init__(self, module_name, dat_path_and_file = '', src_path_and_file = '', imports_to_prepend = ''):
-        gui.Container.__init__(self)
+        flow_chart_graphics.FlowInstruction.__init__(self)
         self.name = module_name
         if len(dat_path_and_file):
             self.module_dat = KRLModuleDatFileParser(dat_path_and_file)
             self.append(self.module_dat)
             file_lines = fread_lines(dat_path_and_file)
             translation_result, file_lines = self.module_dat.parse(file_lines)
-
+            self.draw()
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, 'w+') as f:
                 f.write(imports_to_prepend)
                 for l in translation_result:
@@ -122,7 +124,7 @@ class KRLModule(gui.Container):
             self.append(self.module_src)
             file_lines = fread_lines(src_path_and_file)
             translation_result, file_lines = self.module_src.parse(file_lines)
-
+            self.draw()
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, ('a+' if has_dat else 'w+')) as f:
                 if not has_dat:
                     f.write(imports_to_prepend)

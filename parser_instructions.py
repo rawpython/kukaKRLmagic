@@ -1,7 +1,7 @@
 import re
 import os
 import generic_regexes
-from remi import gui
+import flow_chart_graphics
 import collections
 
 """
@@ -78,7 +78,7 @@ instructions_defs = {
 }
 
 
-class KRLGenericParser(gui.Container):
+class KRLGenericParser(flow_chart_graphics.FlowInstruction):
     stop_statement_found = False
     permissible_instructions_dictionary = None
     indent_comments = True
@@ -87,7 +87,7 @@ class KRLGenericParser(gui.Container):
         standard_permissible_instructions = ['function return','meta instruction','halt','switch','lin','ptp','circ','if begin','for begin','while begin','repeat','loop begin','interrupt decl','interrupt on','interrupt off','trigger distance','trigger path','variable assignment','function call','wait sec','wait for', 'ext', 'extfct', 'signal decl','continue','resume',]
         self.permissible_instructions_dictionary.update({k:v for k,v in instructions_defs.items() if k in standard_permissible_instructions})
 
-        gui.Container.__init__(self)
+        flow_chart_graphics.FlowInstruction.__init__(self)
 
     def get_parent_function(self):
         if issubclass(type(self), KRLProcedureParser) or issubclass(type(self), KRLFunctionParser):
@@ -136,6 +136,8 @@ class KRLGenericParser(gui.Container):
             else:
                 if len(endofline_comment_to_append)>0:
                     translation_result.append(('    ' if self.indent_comments else '') + endofline_comment_to_append + '\n')
+
+        self.draw()
 
         return translation_result, file_lines
 
@@ -386,7 +388,7 @@ class KRLGenericParser(gui.Container):
             result = re.search(instructions_defs['variable assignment'], code_line, re.IGNORECASE)
             elements = result.groups()
             #(None, 'decl ', 'circ_type', 'def_circ_typ', 'system_constants.base')
-            print(elements)
+            #print(elements)
             is_global = not elements[0] is None 
             is_decl = not elements[1] is None
             type_name = elements[2]
@@ -573,6 +575,8 @@ class KRLStatementFor(KRLGenericParser):
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
+        self.text = 'FOR %s=%s TO %s%s'%(variable, value_begin, value_end, '' if value_step is none else 'STEP %s'%value_step)
+
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
         
@@ -597,7 +601,10 @@ class KRLStatementIf(KRLGenericParser):
         self.condition = condition
         permissible_instructions = ['else','if end']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
+
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
+
+        self.text = 'IF %s'%(condition)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
@@ -671,13 +678,14 @@ class KRLStatementSwitch(KRLGenericParser):
         return translation_result_tmp, file_lines 
 
 
-class InterruptObject(gui.Widget):
+class InterruptObject(flow_chart_graphics.FlowInstruction):
     number = 0
     is_global = False
     condition = ''
     instruction = ''
     def __init__(self, number, is_global, condition, instruction, *args, **kwargs):
-        gui.Widget.__init__(self, *args, **kwargs)
+        text = 'INTERRUPT DECL %s WHEN %s DO %s'%(number, condition, instruction)
+        flow_chart_graphics.FlowInstruction.__init__(self, text, *args, **kwargs)
         self.number = number
         self.is_global = is_global
         self.condition = condition
@@ -707,6 +715,8 @@ class KRLProcedureParser(KRLGenericParser):
         self.param_names = param_names
         self.callers_list = []
         self.calling_list = []
+
+        self.text = 'PROCEDURE %s(%s)'%(name, ', '.join(param_names))
 
     
     def parse(self, file_lines):
@@ -753,4 +763,6 @@ class KRLFunctionParser(KRLProcedureParser):
     def __init__(self, name, param_names, return_type):
         KRLProcedureParser.__init__(self, name, param_names)
         self.return_type = return_type
+
+        self.text = 'FUNCTION %s %s(%s)'%(return_type, name, ', '.join(param_names))
         
