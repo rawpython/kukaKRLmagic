@@ -3,6 +3,7 @@ import os
 import generic_regexes
 import parser_instructions
 import flow_chart_graphics
+import remi.gui as gui
 
 """
     This parses dat and src files
@@ -26,7 +27,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
         permissible_instructions = ['procedure begin', 'function begin']
         permissible_instructions_dictionary = {k:v for k,v in parser_instructions.instructions_defs.items() if k in permissible_instructions}
         parser_instructions.KRLGenericParser.__init__(self, permissible_instructions_dictionary)
-
+        
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
 
@@ -67,7 +68,32 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
         if len(_translation_result_tmp):
             translation_result_tmp.extend(_translation_result_tmp)
 
-        return translation_result_tmp, file_lines 
+        return translation_result_tmp, file_lines
+
+    #overloads FlowInstruction.draw§()
+    def draw(self):
+        self.drawings_height = 50
+        w, h = self.recalc_size_and_arrange_children()
+        
+        title_box_width = max( len(self.text) * self.text_letter_width, 200 )
+
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, title_box_width, self.drawings_height), 'title') )
+        #central box
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, self.drawings_height, w, h), 'box') )
+
+        #text
+        txt = gui.SvgText(-w/2 + title_box_width/2, self.drawings_height/2, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( self.append(txt, 'text') )
+
+        self.children['title'].set_stroke(1, 'black')
+        self.children['title'].set_fill('lightyellow')
+
+        self.children['box'].set_stroke(1, 'black')
+        self.children['box'].set_fill('transparent')
 
 
 class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
@@ -98,6 +124,31 @@ class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
             translation_result_tmp.extend(_translation_result_tmp)
 
         return translation_result_tmp, file_lines 
+
+    #overloads FlowInstruction.draw§()
+    def draw(self):
+        self.drawings_height = 50
+        w, h = self.recalc_size_and_arrange_children()
+        
+        title_box_width = max( len(self.text) * self.text_letter_width, 200 )
+
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, title_box_width, self.drawings_height), 'title') )
+        #central box
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, self.drawings_height, w, h), 'box') )
+
+        #text
+        txt = gui.SvgText(-w/2 + title_box_width/2, self.drawings_height/2, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( self.append(txt, 'text') )
+
+        self.children['title'].set_stroke(1, 'black')
+        self.children['title'].set_fill('lightyellow')
+
+        self.children['box'].set_stroke(1, 'black')
+        self.children['box'].set_fill('transparent')
             
 
 class KRLModule(flow_chart_graphics.FlowInstruction):
@@ -109,10 +160,13 @@ class KRLModule(flow_chart_graphics.FlowInstruction):
         self.name = module_name
         if len(dat_path_and_file):
             self.module_dat = KRLModuleDatFileParser(dat_path_and_file)
-            self.append(self.module_dat)
+
+            #it seems to have no relevance in flowcharts
+            #self.module_dat.text = "DAT %s"%module_name
+            #self.append(self.module_dat)
+            
             file_lines = fread_lines(dat_path_and_file)
             translation_result, file_lines = self.module_dat.parse(file_lines)
-            self.draw()
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, 'w+') as f:
                 f.write(imports_to_prepend)
                 for l in translation_result:
@@ -121,12 +175,36 @@ class KRLModule(flow_chart_graphics.FlowInstruction):
         if len(src_path_and_file):
             has_dat = not (self.module_dat is None)
             self.module_src = KRLModuleSrcFileParser(src_path_and_file)
+            self.module_src.text = "SRC %s"%module_name
             self.append(self.module_src)
             file_lines = fread_lines(src_path_and_file)
             translation_result, file_lines = self.module_src.parse(file_lines)
-            self.draw()
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, ('a+' if has_dat else 'w+')) as f:
                 if not has_dat:
                     f.write(imports_to_prepend)
                 for l in translation_result:
                     f.write(l + '\n')
+        self.text = self.name
+        self.draw()
+
+    #overloads FlowInstruction.draw§()
+    def draw(self):
+        self.drawings_height = 50
+        w, h = self.recalc_size_and_arrange_children()
+
+        #central box
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, w, h), 'box') )
+
+        #text
+        txt = gui.SvgText(0, self.drawings_height/2, self.text)
+        #txt.attr_textLength = w-w*0.1
+        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt.attributes['text-anchor'] = 'middle'
+        txt.attributes['dominant-baseline'] = 'middle' #'central'
+        self.drawings_keys.append( self.append(txt, 'text') )
+
+        self.children['box'].set_stroke(1, 'black')
+        self.children['box'].set_fill('transparent')
+
+
+
