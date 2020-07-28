@@ -4,11 +4,15 @@ import remi.gui as gui
 
 class FlowInstruction(gui.SvgSubcontainer):
     drawings_keys = None
-    drawings_height = 200
-    text_letter_width = 10
-    def __init__(self, text = ''):
+    box_height = 200
+    box_width = 200
+    text_letter_width = 9
+    box_text_content = ''
+    margins = 5
+
+    def __init__(self, box_text_content = ''):
         super(FlowInstruction, self).__init__(0, 0, 200, 200)
-        self.text = text
+        self.box_text_content = box_text_content
         self.drawings_keys = []
         self.draw()
 
@@ -18,8 +22,8 @@ class FlowInstruction(gui.SvgSubcontainer):
             self.remove_child(self.children[k])
         self.drawings_keys = []
 
-        w = max( len(self.text) * self.text_letter_width, 200 )
-        h = self.drawings_height
+        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        h = self.box_height
 
         w_max = w
         #estimate self width
@@ -41,65 +45,92 @@ class FlowInstruction(gui.SvgSubcontainer):
         return w_max, h
 
     def draw(self):
-        self.drawings_height = 70
+        self.box_height = 70
         w, h = self.recalc_size_and_arrange_children()
         
         line_length = 20
         #top vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
+        self.drawings_keys.append( self.append(gui.SvgLine(0, 0, 0, line_length), 'line_top') )
 
         #central box
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgRectangle(-w/2, line_length, w, self.drawings_height-line_length), 'box') )
+        #self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgRectangle(-w/2, line_length, w, self.box_height-line_length), 'box') )
+        self.drawings_keys.append( self.append(RectangleBox(-w/2, line_length, w, self.box_height-line_length, self.box_text_content), 'box') )
 
-        #text
-        txt = gui.SvgText(0, (self.drawings_height-line_length)/2 + line_length, self.text)
+        self.children['line_top'].set_stroke(1, 'black')
+        self.children['box'].set_stroke(1, 'black')
+        #self.children['box'].set_fill('transparent')
+
+
+class LabeledBox(gui.SvgSubcontainer):
+    # Centered at 0, 0
+    text = ''
+    def __init__(self, x, y, w, h, text):
+        super(LabeledBox, self).__init__(x,y,w,h)
+        self.text = text
+        
+        txt = gui.SvgText(0, 0, self.text)
         #txt.attr_textLength = w-w*0.1
         #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
         txt.attributes['text-anchor'] = 'middle'
         txt.attributes['dominant-baseline'] = 'middle' #'central'
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt, 'text') )
+        self.append(txt)
 
-        self.children['line_top'].set_stroke(1, 'black')
-        self.children['box'].set_stroke(1, 'black')
-        self.children['box'].set_fill('transparent')
-
-
-class Romboid(gui.SvgSubcontainer):
-    # Centered at 0, 0
-    def __init__(self, x, y, w, h):
-        super(Romboid, self).__init__(x,y,w,h)
-        self.append(gui.SvgLine(-w/2, 0, 0, -h/2), 'l1')
-        self.append(gui.SvgLine(0, -h/2, w/2, 0), 'l2')
-        self.append(gui.SvgLine(w/2, 0, 0, h/2), 'l3')
-        self.append(gui.SvgLine(0, h/2, -w/2, 0 ), 'l4')
         self.set_viewbox(-w/2, -h/2, w, h)
 
     def set_stroke(self, w, color):
-        self.children['l1'].set_stroke(w, color)
-        self.children['l2'].set_stroke(w, color)
-        self.children['l3'].set_stroke(w, color)
-        self.children['l4'].set_stroke(w, color)
+        for k,v in self.children.items():
+            if type(v) in [gui.SvgLine, gui.SvgRectangle, gui.SvgEllipse, gui.SvgPolygon, gui.SvgPolyline]:
+                v.set_stroke(w, color)
+
+    def set_fill(self, color):
+        for k,v in self.children.items():
+            if type(v) in [gui.SvgRectangle, gui.SvgCircle, gui.SvgEllipse, gui.SvgPolygon, gui.SvgPolyline]:
+                v.set_fill(color)
 
 
-class ForBox(gui.SvgSubcontainer):
+class RectangleBox(LabeledBox):
     # Centered at 0, 0
-    def __init__(self, x, y, w, h):
-        super(ForBox, self).__init__(x,y,w,h)
-        corners_width = 30
-        self.append(gui.SvgLine(-w/2, 0, -w/2+corners_width, -h/2), 'l1')
-        self.append(gui.SvgLine(w/2-corners_width, -h/2, w/2, 0), 'l2')
-
-        self.append(gui.SvgLine(w/2, 0, w/2-corners_width, h/2), 'l3')
-        self.append(gui.SvgLine(-w/2+corners_width, h/2, -w/2, 0 ), 'l4')
+    def __init__(self, x, y, w, h, text):
+        super(RectangleBox, self).__init__(x,y,w,h,text)
+        self.append(gui.SvgRectangle(-w/2, -h/2, w, h), 'box')
+        self.children['box'].set_fill('rgba(100,100,100, 0.01)')
         
-        self.append(gui.SvgLine(-w/2+corners_width, -h/2, w/2-corners_width, -h/2), 'ltop')
-        self.append(gui.SvgLine(-w/2+corners_width, h/2, w/2-corners_width, h/2), 'lbottom')
-        self.set_viewbox(-w/2, -h/2, w, h)
 
-    def set_stroke(self, w, color):
-        self.children['l1'].set_stroke(w, color)
-        self.children['l2'].set_stroke(w, color)
-        self.children['l3'].set_stroke(w, color)
-        self.children['l4'].set_stroke(w, color)
-        self.children['ltop'].set_stroke(w, color)
-        self.children['lbottom'].set_stroke(w, color)
+class EllipseBox(LabeledBox):
+    # Centered at 0, 0
+    def __init__(self, x, y, w, h, text):
+        super(EllipseBox, self).__init__(x,y,w,h,text)
+        self.append(gui.SvgEllipse(0, 0, w/2, h/2), 'box')
+        self.children['box'].set_fill('rgba(100,255,100, 0.1)')
+        
+
+class RomboidBox(LabeledBox):
+    # Centered at 0, 0
+    def __init__(self, x, y, w, h, text):
+        super(RomboidBox, self).__init__(x,y,w,h,text)
+        poly = gui.SvgPolygon(10)
+        poly.add_coord(-w/2, 0)
+        poly.add_coord(0, -h/2)
+        poly.add_coord(w/2, 0)
+        poly.add_coord(0, h/2)
+        poly.add_coord(-w/2, 0 )
+        self.append(poly, 'box')
+        self.children['box'].set_fill('rgba(255,100,100, 0.1)')
+        
+
+class ForBox(LabeledBox):
+    # Centered at 0, 0
+    def __init__(self, x, y, w, h, text):
+        super(ForBox, self).__init__(x,y,w,h, text)
+        corners_width = 30
+        poly = gui.SvgPolygon(10)
+        poly.add_coord(-w/2, 0) 
+        poly.add_coord(-w/2+corners_width, -h/2)
+        poly.add_coord(w/2-corners_width, -h/2)
+        poly.add_coord(w/2, 0)
+        poly.add_coord(w/2-corners_width, h/2)
+        poly.add_coord(-w/2+corners_width, h/2)
+        poly.add_coord(-w/2, 0 )
+        
+        self.append(poly, 'box')
+        self.children['box'].set_fill('rgba(100,100,255, 0.1)')

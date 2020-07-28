@@ -70,30 +70,51 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
 
         return translation_result_tmp, file_lines
 
+    def recalc_size_and_arrange_children(self):
+        #remove all drawings prior to redraw it
+        for k in self.drawings_keys:
+            self.remove_child(self.children[k])
+        self.drawings_keys = []
+
+        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        h = self.box_height
+
+        w_max = w
+        #estimate self width
+        for k in self._render_children_list:
+            v = self.children[k]
+            w_max = max(w_max, float(v.attr_width))
+
+        gap_between_elements = 70
+        #set position for children
+        for k in self._render_children_list:
+            v = self.children[k]
+            v.set_position(-float(v.attr_width)/2, h + gap_between_elements)
+            h = h + float(v.attr_height) + gap_between_elements
+
+        gui._MixinSvgSize.set_size(self, w_max+self.margins*2, h+self.margins*2)
+
+        self.set_viewbox(-w_max/2-self.margins, -self.margins, w_max+self.margins*2, h+self.margins*2)
+
+        return w_max+self.margins*2, h+self.margins*2
+
     #overloads FlowInstruction.draw§()
     def draw(self):
-        self.drawings_height = 50
+        self.box_height = 50
         w, h = self.recalc_size_and_arrange_children()
-        
-        title_box_width = max( len(self.text) * self.text_letter_width, 200 )
 
-        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, title_box_width, self.drawings_height), 'title') )
         #central box
-        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, self.drawings_height, w, h), 'box') )
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, w, h), 'box') )
 
         #text
-        txt = gui.SvgText(-w/2 + title_box_width/2, self.drawings_height/2, self.text)
-        #txt.attr_textLength = w-w*0.1
-        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt = gui.SvgText(0, self.box_height/2, self.box_text_content)
         txt.attributes['text-anchor'] = 'middle'
         txt.attributes['dominant-baseline'] = 'middle' #'central'
         self.drawings_keys.append( self.append(txt, 'text') )
 
-        self.children['title'].set_stroke(1, 'black')
-        self.children['title'].set_fill('lightyellow')
-
         self.children['box'].set_stroke(1, 'black')
         self.children['box'].set_fill('transparent')
+
 
 
 class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
@@ -127,17 +148,17 @@ class KRLModuleDatFileParser(parser_instructions.KRLGenericParser):
 
     #overloads FlowInstruction.draw§()
     def draw(self):
-        self.drawings_height = 50
+        self.box_height = 50
         w, h = self.recalc_size_and_arrange_children()
         
-        title_box_width = max( len(self.text) * self.text_letter_width, 200 )
+        title_box_width = max( len(self.box_text_content) * self.text_letter_width, 200 )
 
-        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, title_box_width, self.drawings_height), 'title') )
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, title_box_width, self.box_height), 'title') )
         #central box
-        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, self.drawings_height, w, h), 'box') )
+        self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, self.box_height, w, h), 'box') )
 
         #text
-        txt = gui.SvgText(-w/2 + title_box_width/2, self.drawings_height/2, self.text)
+        txt = gui.SvgText(-w/2 + title_box_width/2, self.box_height/2, self.box_text_content)
         #txt.attr_textLength = w-w*0.1
         #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
         txt.attributes['text-anchor'] = 'middle'
@@ -175,7 +196,7 @@ class KRLModule(flow_chart_graphics.FlowInstruction):
         if len(src_path_and_file):
             has_dat = not (self.module_dat is None)
             self.module_src = KRLModuleSrcFileParser(src_path_and_file)
-            self.module_src.text = "SRC %s"%module_name
+            self.module_src.box_text_content = "SRC %s"%module_name
             self.append(self.module_src)
             file_lines = fread_lines(src_path_and_file)
             translation_result, file_lines = self.module_src.parse(file_lines)
@@ -184,21 +205,46 @@ class KRLModule(flow_chart_graphics.FlowInstruction):
                     f.write(imports_to_prepend)
                 for l in translation_result:
                     f.write(l + '\n')
-        self.text = self.name
+        self.box_text_content = self.name
         self.draw()
+
+    def recalc_size_and_arrange_children(self):
+        #remove all drawings prior to redraw it
+        for k in self.drawings_keys:
+            self.remove_child(self.children[k])
+        self.drawings_keys = []
+
+        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        h = self.box_height
+
+        w_max = w
+        #estimate self width
+        for k in self._render_children_list:
+            v = self.children[k]
+            w_max = max(w_max, float(v.attr_width))
+
+        #set position for children
+        for k in self._render_children_list:
+            v = self.children[k]
+            v.set_position(-float(v.attr_width)/2, h)
+            h = h + float(v.attr_height) 
+
+        gui._MixinSvgSize.set_size(self, w_max+self.margins*2, h+self.margins*2)
+
+        self.set_viewbox(-w_max/2-self.margins, -self.margins, w_max+self.margins*2, h+self.margins*2)
+
+        return w_max+self.margins*2, h+self.margins*2
 
     #overloads FlowInstruction.draw§()
     def draw(self):
-        self.drawings_height = 50
+        self.box_height = 50
         w, h = self.recalc_size_and_arrange_children()
 
         #central box
         self.drawings_keys.append( self.append(gui.SvgRectangle(-w/2, 0, w, h), 'box') )
 
         #text
-        txt = gui.SvgText(0, self.drawings_height/2, self.text)
-        #txt.attr_textLength = w-w*0.1
-        #txt.attr_lengthAdjust = 'spacingAndGlyphs' # 'spacing'
+        txt = gui.SvgText(0, self.box_height/2, self.box_text_content)
         txt.attributes['text-anchor'] = 'middle'
         txt.attributes['dominant-baseline'] = 'middle' #'central'
         self.drawings_keys.append( self.append(txt, 'text') )
