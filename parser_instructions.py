@@ -535,11 +535,68 @@ class KRLStatementRepeatUntil(KRLGenericParser):
             self.pass_to_be_added = False
             self.stop_statement_found = True
 
+            self.box_text_content = 'UNTIL %s'%(self.condition)
+
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
             translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
 
         return translation_result_tmp, file_lines 
+
+    def recalc_size_and_arrange_children(self):
+        
+        w, h = super(KRLStatementRepeatUntil, self).recalc_size_and_arrange_children()
+        self.box_height = 100
+        
+        #the box is at the bottom
+        h = h + self.box_height
+
+        h = h + 30*2 #height is increased by 30 for bottom lines
+        w = w + 30*2 #to give margins to return and endfor lines
+        gui._MixinSvgSize.set_size(self, w, h)
+
+        self.set_viewbox(-w/2, 0, w, h)
+
+        return w, h
+
+    def draw(self):
+        line_length = 30
+        self.box_height = line_length
+        self.box_width = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        w, h = self.recalc_size_and_arrange_children()
+        
+        #top vertical line
+        self.drawings_keys.append( self.append(gui.SvgLine(0, 0, 0, line_length), 'line_top') )
+
+        #middle vertical line
+        self.drawings_keys.append( self.append(gui.SvgLine(0, h-self.box_height-line_length*2, 0, h-self.box_height-line_length*1), 'line_middle') )
+
+        #central box line
+        self.drawings_keys.append( self.append(flow_chart_graphics.RomboidBox(-self.box_width/2, h-self.box_height-line_length*1, self.box_width, self.box_height, self.box_text_content), 'box') )
+
+        #line returns
+        poly = gui.SvgPolyline(10)
+        poly.add_coord(-self.box_width/2, h-self.box_height/2-line_length*1)
+        poly.add_coord(-w/2, h-self.box_height/2-line_length*1)
+        poly.add_coord(-w/2, line_length)
+        poly.add_coord(0, line_length)
+        self.drawings_keys.append( self.append(poly, 'lret') )
+
+        poly = gui.SvgPolyline(10)
+        poly.add_coord(self.box_width/2, h-self.box_height/2-line_length*1)
+        poly.add_coord(w/2, h-self.box_height/2-line_length*1)
+        poly.add_coord(w/2, h)
+        poly.add_coord(0, h)
+        self.drawings_keys.append( self.append(poly, 'lendfor') )
+        
+        self.children['line_middle'].set_stroke(1, 'black')
+        self.children['line_top'].set_stroke(1, 'black')
+        self.children['lret'].set_stroke(1, 'black')
+        self.children['lret'].set_fill('transparent')
+        self.children['lendfor'].set_stroke(1, 'black')
+        self.children['lendfor'].set_fill('transparent')
+        
+        self.children['box'].set_stroke(1, 'black')
 
 
 class KRLStatementWhile(KRLGenericParser):
@@ -616,7 +673,6 @@ class KRLStatementWhile(KRLGenericParser):
         self.children['lendfor'].set_fill('transparent')
         
         self.children['box'].set_stroke(1, 'black')
-
 
 
 class KRLStatementLoop(KRLGenericParser):
