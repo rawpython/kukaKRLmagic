@@ -21,6 +21,15 @@ CHAR string[3,20]
     $timer[1] = 0
     $timer_stop[1] = false
     
+    switch i
+    case 1:
+        print('1')
+    case 2_
+        print('2')
+    default:
+        print('0')
+    endswitch
+
     print("geometric addition operation:")
 
     print({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30})

@@ -29,6 +29,7 @@ class FlowInstruction(gui.SvgSubcontainer):
         #estimate self width
         for k in self._render_children_list:
             v = self.children[k]
+            v.draw()
             w_max = max(w_max, float(v.attr_width))
 
         #set position for children

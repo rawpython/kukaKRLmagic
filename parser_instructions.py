@@ -138,8 +138,6 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 if len(endofline_comment_to_append)>0:
                     translation_result.append(('    ' if self.indent_comments else '') + endofline_comment_to_append + '\n')
 
-        self.draw()
-
         return translation_result, file_lines
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
@@ -150,8 +148,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
 
 
-
-        if '$BASE=LK(MACHINE_DEF[MACH_IDX].ROOT, ' in code_line_original:
+        if "print('1')" in code_line_original:
             print("brakepoint")
 
 
@@ -918,6 +915,128 @@ class KRLStatementIf(KRLGenericParser):
         #estimate self width
         for k in self._render_children_list:
             v = self.children[k]
+            v.draw()
+            w_max = max(w_max, float(v.attr_width))
+
+        h_yes = h
+        for v in self.nodes_yes:
+            v.set_position(-float(v.attr_width)/2+w_max, h_yes)
+            h_yes = h_yes + float(v.attr_height) 
+
+        h_no = h
+        for v in self.nodes_no:
+            v.set_position(-float(v.attr_width)/2-w_max, h_no)
+            h_no = h_no + float(v.attr_height) 
+            
+        w_max = w_max * 3 #the width is x3 because it has components at left and at right
+
+        h = max(h_yes, h_no)
+        
+        h = h + 30 #height is increased by 30 for bottom lines
+
+        gui._MixinSvgSize.set_size(self, w_max, h)
+
+        self.set_viewbox(-w_max/2, 0, w_max, h)
+
+        return w_max, h
+
+    def draw(self):
+        self.box_height = 200
+        w, h = self.recalc_size_and_arrange_children()
+        
+        line_length = 30
+        #top vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
+
+        romboid_h = self.box_height-(line_length)
+        romboid_w = w/3
+        #right horizontal line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/3 , romboid_h/2+line_length), 'line_right_h') )
+
+        #left horizontal line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-romboid_w/2, romboid_h/2+line_length, -w/3 , romboid_h/2+line_length), 'line_left_h') )
+
+        #right vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, romboid_h/2+line_length, w/3 , self.box_height), 'line_right_v') )
+        #left vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, romboid_h/2+line_length, -w/3 , self.box_height), 'line_left_v') )
+
+
+        #right vertical line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, h-line_length, w/3, h), 'line_right_v_b') )
+        #left vertical line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-line_length, -w/3, h), 'line_left_v_b') )
+
+        #line bottom
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-1, w/3, h-1), 'line_bottom') )
+
+        #central box line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.RomboidBox(-romboid_w/2, line_length, romboid_w, romboid_h, self.box_text_content), 'box') )
+
+
+        txt_true = gui.SvgText(romboid_w/2, romboid_h/2 + line_length -3, 'true')
+        txt_true.attributes['text-anchor'] = 'start'
+        txt_true.attributes['dominant-baseline'] = 'bottom' #'central'
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_true, 'true'))
+
+        txt_false = gui.SvgText(-romboid_w/2, romboid_h/2 + line_length -3, 'false')
+        txt_false.attributes['text-anchor'] = 'end'
+        txt_false.attributes['dominant-baseline'] = 'bottom' #'central'
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_false, 'false'))
+
+
+        self.children['line_top'].set_stroke(1, 'black')
+        self.children['line_right_h'].set_stroke(1, 'black')
+        self.children['line_left_h'].set_stroke(1, 'black')
+        self.children['line_right_v'].set_stroke(1, 'black')
+        self.children['line_left_v'].set_stroke(1, 'black')
+        self.children['line_right_v_b'].set_stroke(1, 'black')
+        self.children['line_left_v_b'].set_stroke(1, 'black')
+        self.children['line_bottom'].set_stroke(1, 'black')
+
+        self.children['box'].set_stroke(1, 'black')
+
+
+#this is a fake KRLGenericParser because it have not to parse code
+# it subclasses KRLGenericParser in order to make it possible call get_parent_function
+# it is the KRLStatementSwitch that parses code and appends widget to this
+class KRLStatementCase(KRLGenericParser):
+    condition = ""
+    nodes_yes = None
+    nodes_no = None
+    yes_done = False
+    def __init__(self, condition):
+        self.condition = condition
+        self.nodes_yes = []
+        self.nodes_no = []
+
+        permissible_instructions = []
+        permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
+        KRLGenericParser.__init__(self, permissible_instructions_dictionary)
+
+        flow_chart_graphics.FlowInstruction.__init__(self,'CASE %s'%(condition))
+
+    def append(self, v, *args, **kwargs):
+        if not self.yes_done:
+            self.nodes_yes.append(v)
+        else:
+            self.nodes_no.append(v)
+        return super(KRLStatementCase, self).append(v, *args, **kwargs)
+
+    def recalc_size_and_arrange_children(self):
+        #remove all drawings prior to redraw it
+        for k in self.drawings_keys:
+            self.remove_child(self.children[k])
+        self.drawings_keys = []
+
+        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        h = self.box_height
+
+        w_max = w
+        #estimate self width
+        for k in self._render_children_list:
+            v = self.children[k]
+            v.draw()
             w_max = max(w_max, float(v.attr_width))
 
         h_yes = h
@@ -1003,6 +1122,8 @@ class KRLStatementSwitch(KRLGenericParser):
     value_to_switch = "" #the switch(value_to_switch)
     pass_to_be_added = False
     first_switch_instruction = True
+    actual_case_node = None
+
     def __init__(self, value_to_switch):
         self.value_to_switch = value_to_switch
         permissible_instructions = ['case','default','endswitch']
@@ -1010,6 +1131,9 @@ class KRLStatementSwitch(KRLGenericParser):
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
         self.box_text_content = 'SWITCH %s'%(self.value_to_switch)
+
+    def append(self, w, *args, **kwargs):
+        self.actual_case_node.append(w, *args, **kwargs)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
@@ -1027,16 +1151,29 @@ class KRLStatementSwitch(KRLGenericParser):
                 case_values = case_value.split(',')
                 condition = ' or '.join(['%s == %s'%(self.value_to_switch, x) for x in case_values]) + ':'
 
+            node = KRLStatementCase(condition)
+            
             if self.first_switch_instruction:
                 translation_result_tmp.append("if " + condition)
+                KRLGenericParser.append(self, node)
             else:
+                self.actual_case_node.yes_done = True
                 translation_result_tmp.append("elif " + condition)
+                self.actual_case_node.append(node)
+            
+            self.actual_case_node = node
+
             self.first_switch_instruction = False
             self.pass_to_be_added = True
+
+
         if instruction_name == 'default':
             if self.pass_to_be_added:
                 translation_result_tmp.append('    pass')
             translation_result_tmp.append("else:")
+            self.actual_case_node.yes_done = True
+
+            
         if instruction_name == 'endswitch':
             self.pass_to_be_added = False
             self.stop_statement_found = True
@@ -1047,6 +1184,44 @@ class KRLStatementSwitch(KRLGenericParser):
 
         return translation_result_tmp, file_lines 
 
+    def recalc_size_and_arrange_children(self):
+        #remove all drawings prior to redraw it
+        for k in self.drawings_keys:
+            self.remove_child(self.children[k])
+        self.drawings_keys = []
+
+        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        h = self.box_height
+
+        w_max = w
+        #estimate self width
+        for k in self._render_children_list:
+            v = self.children[k]
+            v.draw()
+            w_max = max(w_max, float(v.attr_width))
+
+        #set position for children
+        for k in self._render_children_list:
+            v = self.children[k]
+            v.set_position(-float(v.attr_width)/2, h)
+            h = h + float(v.attr_height) 
+
+        gui._MixinSvgSize.set_size(self, w_max+self.margins*2, h+self.margins*2)
+
+        self.set_viewbox(-w_max/2-self.margins, -self.margins, w_max+self.margins*2, h+self.margins*2)
+
+        return w_max+self.margins*2, h+self.margins*2
+
+    #overloads FlowInstruction.draw§()
+    def draw(self):
+        self.box_height = 0
+        w, h = self.recalc_size_and_arrange_children()
+
+        #text
+        txt = gui.SvgText(-w/2+10, 0, self.box_text_content)
+        txt.attributes['text-anchor'] = 'start'
+        txt.attributes['dominant-baseline'] = 'top' #'central'
+        self.drawings_keys.append( KRLGenericParser.append(self, txt, 'text') )
 
 class InterruptObject(flow_chart_graphics.FlowInstruction):
     number = 0

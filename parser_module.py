@@ -43,7 +43,6 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             node = parser_instructions.KRLProcedureParser( procedure_name, param_names )
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
-            self.draw()
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
             
@@ -60,7 +59,6 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
             node = parser_instructions.KRLFunctionParser( procedure_name, param_names, return_value_type_name )
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
-            self.draw()
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
         
@@ -83,6 +81,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser):
         #estimate self width
         for k in self._render_children_list:
             v = self.children[k]
+            v.draw()
             w_max = max(w_max, float(v.attr_width))
 
         gap_between_elements = 70
@@ -221,6 +220,7 @@ class KRLModule(flow_chart_graphics.FlowInstruction):
         #estimate self width
         for k in self._render_children_list:
             v = self.children[k]
+            v.draw()
             w_max = max(w_max, float(v.attr_width))
 
         #set position for children

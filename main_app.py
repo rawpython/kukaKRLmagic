@@ -90,6 +90,8 @@ class MyApp(App):
         project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
         main_container.append(project.get_module('sample_program'))
+        #m = project.get_module('bas')
+        #main_container.append(m)
 
         # The interrupts use the main thread, so the robot program have to be executed in the main thread
         # maybe another process have to be created 
