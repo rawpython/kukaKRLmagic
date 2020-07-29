@@ -58,7 +58,6 @@ class FlowInstruction(gui.SvgSubcontainer):
 
         self.children['line_top'].set_stroke(1, 'black')
         self.children['box'].set_stroke(1, 'black')
-        #self.children['box'].set_fill('transparent')
 
 
 class LabeledBox(gui.SvgSubcontainer):
@@ -94,8 +93,18 @@ class RectangleBox(LabeledBox):
         super(RectangleBox, self).__init__(x,y,w,h,text)
         self.append(gui.SvgRectangle(-w/2, -h/2, w, h), 'box')
         self.children['box'].set_fill('rgba(100,100,100, 0.01)')
-        
 
+
+class ProcedureCallBox(LabeledBox):
+    # Centered at 0, 0
+    def __init__(self, x, y, w, h, text):
+        super(ProcedureCallBox, self).__init__(x,y,w,h,text)
+        offset = 5
+        self.append(gui.SvgRectangle(-w/2+offset, -h/2, w-offset*2, h), 'box_small')
+        self.append(gui.SvgRectangle(-w/2, -h/2, w, h), 'box')
+        self.children['box'].set_fill('rgba(100,100,100, 0.01)')
+        
+        
 class EllipseBox(LabeledBox):
     # Centered at 0, 0
     def __init__(self, x, y, w, h, text):
@@ -115,7 +124,7 @@ class RomboidBox(LabeledBox):
         poly.add_coord(0, h/2)
         poly.add_coord(-w/2, 0 )
         self.append(poly, 'box')
-        self.children['box'].set_fill('rgba(255,100,100, 0.1)')
+        self.children['box'].set_fill('rgba(255,255,0, 0.2)')
         
 
 class ForBox(LabeledBox):

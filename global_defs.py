@@ -296,7 +296,9 @@ jerk_struc = generic_struct
 #this is referenced in $operate.dat, I don't know the right definition
 call_stack = int
 
-
+#to implement kinematics refer to https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html
+# or https://github.com/siddikui/Kuka-KR210-Kinematics
+# or https://github.com/Peroulis/6DOF-KUKA
 class Robot():
     _do_not_stop_ADVANCE_on_next_IO = False
 

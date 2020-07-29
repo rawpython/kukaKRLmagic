@@ -581,6 +581,15 @@ class KRLStatementRepeatUntil(KRLGenericParser):
         poly.add_coord(-w/2, line_length)
         poly.add_coord(0, line_length)
         self.drawings_keys.append( self.append(poly, 'lret') )
+        
+        #arrow
+        polygon = gui.SvgPolygon(10)
+        polygon.add_coord(0, line_length)
+        polygon.add_coord(-10, line_length+5)
+        polygon.add_coord(-10, line_length-5)
+        self.drawings_keys.append( self.append(polygon, 'arrow') )
+        self.children['arrow'].set_stroke(1, 'black')
+        self.children['arrow'].set_fill('black')
 
         poly = gui.SvgPolyline(10)
         poly.add_coord(self.box_width/2, h-self.box_height/2-line_length*1)
@@ -665,6 +674,14 @@ class KRLStatementWhile(KRLGenericParser):
         poly.add_coord(0, h-line_length*1)
         poly.add_coord(0, h)
         self.drawings_keys.append( self.append(poly, 'lendfor') )
+
+        polygon = gui.SvgPolygon(10)
+        polygon.add_coord(-self.box_width/2, (self.box_height-line_length)/2 + line_length)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length-5)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length+5)
+        self.drawings_keys.append( self.append(polygon, 'arrow') )
+        self.children['arrow'].set_stroke(1, 'black')
+        self.children['arrow'].set_fill('black')
         
         self.children['line_top'].set_stroke(1, 'black')
         self.children['lret'].set_stroke(1, 'black')
@@ -731,6 +748,15 @@ class KRLStatementLoop(KRLGenericParser):
         poly.add_coord(-self.box_width/2, (self.box_height-line_length)/2 + line_length)
         self.drawings_keys.append( self.append(poly, 'line') )
         
+        #arrow
+        polygon = gui.SvgPolygon(10)
+        polygon.add_coord(-self.box_width/2, (self.box_height-line_length)/2 + line_length)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length-5)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length+5)
+        self.drawings_keys.append( self.append(polygon, 'arrow') )
+        self.children['arrow'].set_stroke(1, 'black')
+        self.children['arrow'].set_fill('black')
+
         self.children['line_top'].set_stroke(1, 'black')
         self.children['line'].set_stroke(1, 'black')
         self.children['line'].set_fill('transparent')
@@ -802,6 +828,15 @@ class KRLStatementFor(KRLGenericParser):
         poly.add_coord(-w/2, (self.box_height-line_length)/2 + line_length)
         poly.add_coord(-self.box_width/2, (self.box_height-line_length)/2 + line_length)
         self.drawings_keys.append( self.append(poly, 'lret') )
+
+        #arrow
+        polygon = gui.SvgPolygon(10)
+        polygon.add_coord(-self.box_width/2, (self.box_height-line_length)/2 + line_length)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length-5)
+        polygon.add_coord(-self.box_width/2-10, (self.box_height-line_length)/2 + line_length+5)
+        self.drawings_keys.append( self.append(polygon, 'arrow') )
+        self.children['arrow'].set_stroke(1, 'black')
+        self.children['arrow'].set_fill('black')
 
         poly = gui.SvgPolyline(10)
         poly.add_coord(self.box_width/2, (self.box_height-line_length)/2 + line_length)
@@ -962,7 +997,6 @@ class KRLStatementIf(KRLGenericParser):
         self.children['line_bottom'].set_stroke(1, 'black')
 
         self.children['box'].set_stroke(1, 'black')
-        self.children['box'].set_fill('rgba(100,255,100, 0.1)')
 
 
 class KRLStatementSwitch(KRLGenericParser):
@@ -974,6 +1008,8 @@ class KRLStatementSwitch(KRLGenericParser):
         permissible_instructions = ['case','default','endswitch']
         permissible_instructions_dictionary = {k:v for k,v in instructions_defs.items() if k in permissible_instructions}
         KRLGenericParser.__init__(self, permissible_instructions_dictionary)
+
+        self.box_text_content = 'SWITCH %s'%(self.value_to_switch)
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
