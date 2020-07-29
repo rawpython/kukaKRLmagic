@@ -11,6 +11,7 @@ import parser_module
 import remi
 import remi.gui as gui
 from remi import start, App
+import threading
 
 
 def _i(module_name): #import
@@ -70,6 +71,8 @@ class KRLProject():
 
 
 class MyApp(App):
+    main_interpreter_thread = None
+    submit_interpreter_thread = None
     def __init__(self, *args):
         res_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'res')
         #static_file_path can be an array of strings allowing to define
@@ -89,11 +92,19 @@ class MyApp(App):
 
         main_container.append(project.get_module('sample_program'))
 
-        #import sample_program
-        #sample_program.sample_program()
-
+        # The interrupts use the main thread, so the robot program have to be executed in the main thread
+        # maybe another process have to be created 
+        #self.main_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
+        #self.main_interpreter_thread.start()
+        self.run_program()
+        self.submit_interpreter_thread = None
+        
         # returning the root widget
         return main_container
+
+    def run_program(self):
+        import sample_program
+        sample_program.sample_program()
 
 
 if __name__ == "__main__":
