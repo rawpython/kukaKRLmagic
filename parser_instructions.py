@@ -148,7 +148,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
 
 
-        if "print('1')" in code_line_original:
+        if "print('0')" in code_line_original:
             print("brakepoint")
 
 
@@ -1032,34 +1032,39 @@ class KRLStatementCase(KRLGenericParser):
         w = max( len(self.box_text_content) * self.text_letter_width, 200 )
         h = self.box_height
 
-        w_max = w
+        w_max_yes = w
+        w_max_no = w
         #estimate self width
-        for k in self._render_children_list:
-            v = self.children[k]
+        for v in self.nodes_yes:
             v.draw()
-            w_max = max(w_max, float(v.attr_width))
+            w_max_yes = max(w_max_yes, float(v.attr_width))
+        for v in self.nodes_no:
+            v.draw()
+            w_max_no = max(w_max_no, float(v.attr_width))
+
+        w = w_max_yes + w_max_no
 
         h_yes = h
         for v in self.nodes_yes:
-            v.set_position(-float(v.attr_width)/2+w_max, h_yes)
+            v.set_position(w/2-float(v.attr_width), h_yes)
             h_yes = h_yes + float(v.attr_height) 
 
         h_no = h
         for v in self.nodes_no:
-            v.set_position(-float(v.attr_width)/2-w_max, h_no)
+            v.set_position(-float(v.attr_width)/2, h_no)
             h_no = h_no + float(v.attr_height) 
             
-        w_max = w_max * 3 #the width is x3 because it has components at left and at right
+        #w_max = w_max * 3 #the width is x3 because it has components at left and at right
 
         h = max(h_yes, h_no)
         
         h = h + 30 #height is increased by 30 for bottom lines
 
-        gui._MixinSvgSize.set_size(self, w_max, h)
+        gui._MixinSvgSize.set_size(self, w, h)
 
-        self.set_viewbox(-w_max/2, 0, w_max, h)
+        self.set_viewbox(-w/2, 0, w, h)
 
-        return w_max, h
+        return w, h
 
     def draw(self):
         self.box_height = 200
@@ -1070,26 +1075,22 @@ class KRLStatementCase(KRLGenericParser):
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
 
         romboid_h = self.box_height-(line_length)
-        romboid_w = w/3
+        romboid_w = max( len(self.box_text_content) * self.text_letter_width, 200 )
         #right horizontal line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/3 , romboid_h/2+line_length), 'line_right_h') )
 
-        #left horizontal line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-romboid_w/2, romboid_h/2+line_length, -w/3 , romboid_h/2+line_length), 'line_left_h') )
-
+        
         #right vertical line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, romboid_h/2+line_length, w/3 , self.box_height), 'line_right_v') )
-        #left vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, romboid_h/2+line_length, -w/3 , self.box_height), 'line_left_v') )
+        #central vertical line
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, romboid_h, 0 , romboid_h+line_length), 'line_central_v') )
 
 
         #right vertical line bottom
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, h-line_length, w/3, h), 'line_right_v_b') )
-        #left vertical line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-line_length, -w/3, h), 'line_left_v_b') )
-
+        
         #line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-1, w/3, h-1), 'line_bottom') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-1, w/3, h-1), 'line_bottom') )
 
         #central box line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.RomboidBox(-romboid_w/2, line_length, romboid_w, romboid_h, self.box_text_content), 'box') )
@@ -1108,11 +1109,9 @@ class KRLStatementCase(KRLGenericParser):
 
         self.children['line_top'].set_stroke(1, 'black')
         self.children['line_right_h'].set_stroke(1, 'black')
-        self.children['line_left_h'].set_stroke(1, 'black')
+        self.children['line_central_v'].set_stroke(1, 'black')
         self.children['line_right_v'].set_stroke(1, 'black')
-        self.children['line_left_v'].set_stroke(1, 'black')
         self.children['line_right_v_b'].set_stroke(1, 'black')
-        self.children['line_left_v_b'].set_stroke(1, 'black')
         self.children['line_bottom'].set_stroke(1, 'black')
 
         self.children['box'].set_stroke(1, 'black')
@@ -1218,7 +1217,7 @@ class KRLStatementSwitch(KRLGenericParser):
         w, h = self.recalc_size_and_arrange_children()
 
         #text
-        txt = gui.SvgText(-w/2+10, 0, self.box_text_content)
+        txt = gui.SvgText(-w/2+10, +10, self.box_text_content)
         txt.attributes['text-anchor'] = 'start'
         txt.attributes['dominant-baseline'] = 'top' #'central'
         self.drawings_keys.append( KRLGenericParser.append(self, txt, 'text') )

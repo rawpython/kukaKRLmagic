@@ -22,11 +22,17 @@ CHAR string[3,20]
     $timer_stop[1] = false
     
     switch i
-    case 1:
+    case 1
         print('1')
-    case 2_
+    case 2
         print('2')
-    default:
+    case 3
+        print('3')
+    case 4
+        print('4')
+    case 5
+        print('5')
+    default
         print('0')
     endswitch
 
