@@ -77,7 +77,11 @@ STRUC TRACECACHE_T CHAR NAME[64],INT ACT_ITER,INT MAX_ITER
 STRUC TM_SUGG_T CHAR TM_ID[24]
 STRUC TQM_TQDAT_T INT T11,T12,T13,T14,T15,T16,T21,T22,T23,T24,T25,T26,K1,K2,K3,K4,K5,K6,O1,O2,ID,OVM,REAL TMF
 ;ENDFOLD
-
+;==================================
+; External declarations:
+;==================================
+EXT  BAS (BAS_COMMAND  :IN,REAL  :IN )
+EXT  IR_STOPM ( )
 
 ;====================
 ; Signal declarations
@@ -755,10 +759,193 @@ DECL CONV_MODE_TYPE ActualConveyorMode=#Relative
 ;*******************************************
 ;Make your modifications -ONLY- here
 ;*******************************************
+
+;Scambio dati previsto tra robot e plc
+;                   Robot        PLC
+;Heartbeat                  < >          ;forse non serve, c'e' diagnostica profinet?
+;Motor ON                   < -
+;Move enable                < -
+;Sistema ON/OFF             < -
+;Sistema auto/maint         < -
+;Livello allarme            < -
+;Stato robot                - >
+;Allarmi robot              - >
+;Ack robot alarms           < -
+;Robot in zona sicura       - >
+;Bassa temperatura          < -
+;Linea in produzione        < -           ;info per iniziare riscaldamento
+;Riscaldamento attivo       - >
+;Start ciclo                < -
+;Start Rimarcatura          < -           ;?
+;Comandi ciclo automatico   < -           ;PULIZIA
+;Comandi manuali            < -           ;CALIBRAZIONE, PULIZIA, MANUTENZIONE, CALIB LASER TOOL
+;O_START_PROFILE_ACQ        - >           ;comando inizio scansione, permane a 1 durante scansione, il PLC attiva il laser e la bufferizzazione valori
+;Trasmissione profilo       < -           ;bit trasmissione in corso
+;Laser meas frequency        ?           ;decidere chi deve detenere questo parametro
+;Vel scansione               ?           ;decidere chi deve detenere questo parametro
+;Indice misura              < -
+;Indice misura copiata      - >
+;CRC misure                 < -
+;Vel marcatura               ?
+;Inizio stampa              - >           ;permane a 1 durante stampa
+;Attiva lama aria           - >
+;Apri otturatore            - >           ;a 0 sarebbe chiudi otturatore
+;Otturatore aperto          < -
+;Otturatore chiuso          < -
+;Comando vortex             - >
+;Comando lama d'aria        - >
+;DM362x enabled             < -
+;Trigger DM362x             - >
+;Command head wash          - >
+;Command shot test          - > 
+
+
+
+
 ;==================================
-; External declarations:
+; Userdefined Types 
 ;==================================
-EXT  BAS (BAS_COMMAND  :IN,REAL  :IN )
-EXT  IR_STOPM ( )
+;tramite PROFINET
+SIGNAL I_GENERAL_EMG_OK $IN[1025] ; general emergency ok
+SIGNAL I_EMG_RESET $IN[1026] ;reset rele' emergenza da Danieli
+SIGNAL I_SEQUENCE_LOCK $IN[1026]
+SIGNAL I_LINE_MODE_DAN $IN[1025] ;line mode of Danieli Automation. 0:manual - 1:automatic
+SIGNAL I_GENERAL_BYPASS $IN[1026] ; interblocco inserito
+SIGNAL I_COMPRESSED_AIR_LINE $IN[1025] ; 0:not ok - 1:ok
+SIGNAL I_START_MARK $IN[1026] ;Pipes layer presence at the marking station ;mettere in AND con I_LINE_MODE_DAN
+SIGNAL I_MANUAL_START $IN[1026] ;Forzatura marcatura con linea produzione in manuale ;mettere in NOT AND con I_LINE_MODE_DAN
+
+SIGNAL O_EMG_RESET $OUT[1026] ;comando verso il rele' di emergenza per il reset
+
+;external start
+;robot error reset
+;move enable
+SIGNAL I_PRODUCTION_LINE_ON $IN[1025] ;segnale di produzione attiva, permette di avviare il riscaldamento
+SIGNAL I_ACKNOWLEDGE_ALARMS $IN[1026] ;comando riconoscimento allarmi
+SIGNAL I_ENABLE_CODE_READING $IN[1026] ;quando abilitato, il sistema effettua la lettura codici a fine ciclo
+
+SIGNAL O_SYSTEM_READY $OUT[1026] ;Sistema pronto
+SIGNAL O_SAFETY_PLACE $OUT[1026] ;Robot in zona sicura
+SIGNAL O_MOTOR_ON $OUT[1026] ;Lampada motor on
+SIGNAL O_MAINTENANCE_MODE $OUT[2] ;Sistema in manutenzione
+
+;tramite PROFISAFE
+SIGNAL I_NO_EMERGENCY $IN[1025] ;no emergenza estarna
+SIGNAL I_OPERATOR_SAFETY_OK $IN[1025]
+SIGNAL O_NO_EMERGENCY $OUT[1025] ;marcatrice non in emergenza
+
+
+;SEGNALI interni della marcatrice
+;spare
+SIGNAL I_AUTO $IN[2] ; Sistema in AUTOMATICO
+SIGNAL I_TEMP_NOT_LOW $IN[3] ;temperatura >10 gradi
+;spare
+;spare
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;spare
+SIGNAL I_AIR_PRESSURE_OK $IN[9]
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;spare
+;spare
+;spare
+;spare
+;spare
+;spare
+;spare
+;spare
+;spare
+;spare
+
+SIGNAL sysHeartbeatPartner $IN[1025]  TO $IN[1026] ;heartbeat from the partner
+
+;=============================
+;OUTPUT LIST
+;=============================
+SIGNAL O_ALARM $OUT[1] ;Lampada Allarme
+;spare
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;dichiarato in sds7000.dat
+;spare
+;dichiarato in sds7000.dat
+;spare
+;spare
+;spare
+
+
+
+;ENDFOLD (INPUT/OUTPUT)
+
+
+;FOLD POSIZIONI
+;=============================
+;TOOL E POSIZIONI
+;=============================
+E6AXIS POS_PARK={A1 -35.0000,A2 -63.0000,A3 87.0000,A4 0.0,A5 66.0000,A6 40.0000,E1 0.0,E2 0.0,E3 0.0,E4 0.0,E5 0.0,E6 0.0}
+E6AXIS POS_MAINT={A1 -35.0000,A2 -63.0000,A3 104.000,A4 0.0,A5 -46.0000,A6 0.0,E1 0.0,E2 0.0,E3 0.0,E4 0.0,E5 0.0,E6 0.0}
+E6AXIS POS_CALIBRAZIONE={A1 0.0,A2 -90.0000,A3 90.0000,A4 0.0,A5 0.0,A6 0.0,E1 0.0,E2 0.0,E3 0.0,E4 0.0,E5 0.0,E6 0.0}
+E6POS POS_INIZIO_PULIZIA={X 330.000,Y 1915.00,Z 505.000,A 90.0000,B 90.0000,C 0.0}
+E6POS POS_FINE_PULIZIA={X 756.000,Y 1917.00,Z 505.000,A 90.0000,B 90.0000,C 0.0}
+E6AXIS POS_CHIUSO={A1 0.0,A2 -121.690,A3 149.380,A4 0.0,A5 60.2100,A6 0.0,E1 0.0,E2 0.0,E3 0.0,E4 0.0,E5 0.0,E6 0.0}
+
+;ENDFOLD (BUFFER DI MARCATURA)
+;FOLD STRUTTURE 
+;=============================
+;STRUTTURE
+;=============================
+
+
+;ENDFOLD (STRUTTURE)
+;FOLD VARIABILI
+;=============================
+;VARIABILI
+;=============================
+INT NUMEROPASSATEPULIZIA=3
+BOOL BSISTEMA_IN_MANUTENZIONE=FALSE
+INT RETURN_VALUE=0 ;variable used to calculate the return path
+
+;to robot
+BOOL sysON=FALSE ;status ON of the system
+BOOL sysCycleEnabled=FALSE ;status cycle enabling flag 
+BOOL cmdGoClean=FALSE ;cmd to go clean
+BOOL cmdMotorOn=FALSE ;the cmd to trigger motor on
+BOOL cmdRemark=FALSE ;cmd to perform a remark cycle
+INT sysAlarmLevel=2 ;1-low 2-medium 3-high < still unknown if it will be the robot that will manage alarms or the PLC
+
+;from robot
+INT sysRobotState=0 ;cycle status of the robot 
+INT sysRobotFlags=1024 ;status flags from the robot. It would be better to unpack these bits
+INT sysHeartbeatRobot=12254 ;heartbeat from the robot
+INT sysCycleTime=0 ;cycle time
+BOOL sysCycleResult=FALSE ;result of the last cycle
+
+;=============================
+;COSTANTI
+;=============================
+;Marking System Cycle Phase
+INT RBT_STATE_UNDEFINED=0
+INT RBT_STATE_PARK=1
+INT RBT_STATE_LAYER_SCAN=2
+INT RBT_STATE_MARKING=3
+INT RBT_STATE_READING=4
+INT RBT_STATE_CLEANING=5
+INT RBT_STATE_CALIBRATION=6
+INT RBT_STATE_MAINT_POS=7
+INT RBT_STATE_RETURN_PARK=8
+INT RBT_STATE_WARMUP=9
+
+;ENDFOLD (VARIABILI)
+
 ;ENDFOLD (USER GLOBALS)
 ENDDAT

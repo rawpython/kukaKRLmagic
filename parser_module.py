@@ -29,11 +29,13 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         parser_instructions.KRLGenericParser.__init__(self, permissible_instructions_dictionary)
 
         gui.HBox.__init__(self)
-        self.append(gui.ListView(), 'list')
+        self.css_align_items = 'flex-start'
+        self.append(gui.ListView(width=300), 'list')
+        self.append(gui.Container(width=800, style={'overflow-x':'scroll'}), 'container')
         self.children['list'].onselection.do(self.on_proc_list_selected)
         
     def on_proc_list_selected(self, widget, selected_key):
-        self.append(widget.children[selected_key].node, 'proc_to_view')
+        self.children['container'].append(widget.children[selected_key].node, 'proc_to_view')
         widget.children[selected_key].node.draw()
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):

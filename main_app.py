@@ -1,9 +1,5 @@
-"""
-given a base directory
-    it searches for all files/modules and calls the file_parser to translate KRL into python language
-
-    special files like $config.dat and sps.sub have to be managed differently
-"""
+#!/usr/local/bin/python
+# -*- coding: latin-1 -*-
 
 import os
 #import parser_file
@@ -53,7 +49,10 @@ class KRLProject():
         """
 
         self.modules.extend( [
-            parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')) ])
+                parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
+                parser_module.KRLModule('geometrylib', self.r1_files['geometrylib.dat'], src_path_and_file=self.r1_files['geometrylib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
+                parser_module.KRLModule('sds7000', self.r1_files['sds7000.dat'], src_path_and_file=self.r1_files['sds7000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('geometrylib')) 
+            ])
 
     def get_module(self, name):
         for m in self.modules:
@@ -90,6 +89,8 @@ class MyApp(App):
         project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
         main_container.append(project.get_module('sample_program'))
+        main_container.append(project.get_module('geometrylib'))
+        main_container.append(project.get_module('sds7000'))
         #m = project.get_module('bas')
         #main_container.append(m)
 

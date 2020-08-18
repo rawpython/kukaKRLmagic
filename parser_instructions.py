@@ -79,6 +79,9 @@ instructions_defs = {
 }
 
 
+uuid = 0
+
+
 class KRLGenericParser(flow_chart_graphics.FlowInstruction):
     stop_statement_found = False
     permissible_instructions_dictionary = None
@@ -141,6 +144,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         return translation_result, file_lines
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
+        global uuid
         translation_result_tmp = []
 
 
@@ -908,67 +912,70 @@ class KRLStatementIf(KRLGenericParser):
             self.remove_child(self.children[k])
         self.drawings_keys = []
 
-        w = max( len(self.box_text_content) * self.text_letter_width, 200 )
+        box_text_size = max( len(self.box_text_content) * self.text_letter_width, 100 )
         h = self.box_height
 
-        w_max = w
+        w_max = box_text_size
         #estimate self width
         for k in self._render_children_list:
             v = self.children[k]
             v.draw()
             w_max = max(w_max, float(v.attr_width))
 
+        total_width = (w_max*2+box_text_size)
+
         h_yes = h
         for v in self.nodes_yes:
-            v.set_position(-float(v.attr_width)/2+w_max, h_yes)
+            v.set_position(-w_max/2+total_width/2-float(v.attr_width)/2 , h_yes)
             h_yes = h_yes + float(v.attr_height) 
 
         h_no = h
         for v in self.nodes_no:
-            v.set_position(-float(v.attr_width)/2-w_max, h_no)
+            v.set_position(-total_width/2 + w_max/2 - float(v.attr_width)/2, h_no)
             h_no = h_no + float(v.attr_height) 
             
-        w_max = w_max * 3 #the width is x3 because it has components at left and at right
+        #w_max = w_max * 2 + box_text_size #the width is x3 because it has components at left and at right
 
         h = max(h_yes, h_no)
         
         h = h + 30 #height is increased by 30 for bottom lines
 
-        gui._MixinSvgSize.set_size(self, w_max, h)
+        gui._MixinSvgSize.set_size(self, total_width, h)
 
-        self.set_viewbox(-w_max/2, 0, w_max, h)
+        total_width = (w_max*2+box_text_size)
+        self.set_viewbox(-total_width/2, 0, total_width, h)
 
-        return w_max, h
+        return box_text_size, w_max, total_width, h
 
     def draw(self):
         self.box_height = 200
-        w, h = self.recalc_size_and_arrange_children()
+        box_text_size, w_max, w, h = self.recalc_size_and_arrange_children()
         
         line_length = 30
         #top vertical line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, 0, 0, line_length), 'line_top') )
 
         romboid_h = self.box_height-(line_length)
-        romboid_w = w/3
+        romboid_w = box_text_size
         #right horizontal line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/3 , romboid_h/2+line_length), 'line_right_h') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/2-w_max/2 , romboid_h/2+line_length), 'line_right_h') )
 
         #left horizontal line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-romboid_w/2, romboid_h/2+line_length, -w/3 , romboid_h/2+line_length), 'line_left_h') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-romboid_w/2, romboid_h/2+line_length, -w/2+w_max/2 , romboid_h/2+line_length), 'line_left_h') )
 
         #right vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, romboid_h/2+line_length, w/3 , self.box_height), 'line_right_v') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/2-w_max/2, romboid_h/2+line_length, w/2-w_max/2 , self.box_height), 'line_right_v') )
         #left vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, romboid_h/2+line_length, -w/3 , self.box_height), 'line_left_v') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/2+w_max/2, romboid_h/2+line_length, -w/2+w_max/2 , self.box_height), 'line_left_v') )
 
 
         #right vertical line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, h-line_length, w/3, h), 'line_right_v_b') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/2-w_max/2, h-line_length, w/2-w_max/2, h), 'line_right_v_b') )
         #left vertical line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-line_length, -w/3, h), 'line_left_v_b') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/2+w_max/2, h-line_length, -w/2+w_max/2, h), 'line_left_v_b') )
 
         #line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/3, h-1, w/3, h-1), 'line_bottom') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(-w/2+w_max/2, h-1, w/2-w_max/2, h-1), 'line_bottom') )
 
         #central box line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.RomboidBox(-romboid_w/2, line_length, romboid_w, romboid_h, self.box_text_content), 'box') )
@@ -976,12 +983,12 @@ class KRLStatementIf(KRLGenericParser):
 
         txt_true = gui.SvgText(romboid_w/2, romboid_h/2 + line_length -3, 'true')
         txt_true.attributes['text-anchor'] = 'start'
-        txt_true.attributes['dominant-baseline'] = 'bottom' #'central'
+        txt_true.attributes['dominant-baseline'] = 'baseline' #'middle'
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_true, 'true'))
 
         txt_false = gui.SvgText(-romboid_w/2, romboid_h/2 + line_length -3, 'false')
         txt_false.attributes['text-anchor'] = 'end'
-        txt_false.attributes['dominant-baseline'] = 'bottom' #'central'
+        txt_false.attributes['dominant-baseline'] = 'baseline' #'middle'
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_false, 'false'))
 
 
@@ -1038,11 +1045,13 @@ class KRLStatementCase(KRLGenericParser):
         for v in self.nodes_yes:
             v.draw()
             w_max_yes = max(w_max_yes, float(v.attr_width))
+            print(v.box_text_content + ": " + v.attr_width)
         for v in self.nodes_no:
             v.draw()
             w_max_no = max(w_max_no, float(v.attr_width))
+            print(v.box_text_content + ": " + v.attr_width)
 
-        w = w_max_yes + w_max_no
+        w = (w_max_yes*2 + w_max_no) + 10
 
         h_yes = h
         for v in self.nodes_yes:
@@ -1064,11 +1073,11 @@ class KRLStatementCase(KRLGenericParser):
 
         self.set_viewbox(-w/2, 0, w, h)
 
-        return w, h
+        return w, w_max_yes, w_max_no, h, h_yes, h_no
 
     def draw(self):
         self.box_height = 200
-        w, h = self.recalc_size_and_arrange_children()
+        w, w_max_yes, w_max_no, h, h_yes, h_no = self.recalc_size_and_arrange_children()
         
         line_length = 30
         #top vertical line
@@ -1077,20 +1086,18 @@ class KRLStatementCase(KRLGenericParser):
         romboid_h = self.box_height-(line_length)
         romboid_w = max( len(self.box_text_content) * self.text_letter_width, 200 )
         #right horizontal line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/3 , romboid_h/2+line_length), 'line_right_h') )
-
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(romboid_w/2, romboid_h/2+line_length, w/2 - w_max_yes/2 , romboid_h/2+line_length), 'line_right_h') )
         
         #right vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, romboid_h/2+line_length, w/3 , self.box_height), 'line_right_v') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/2 - w_max_yes/2 , romboid_h/2+line_length, w/2 - w_max_yes/2  , self.box_height), 'line_right_v') )
         #central vertical line
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, romboid_h, 0 , romboid_h+line_length), 'line_central_v') )
-
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h, 0 , h - line_length), 'line_central_v') )
 
         #right vertical line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/3, h-line_length, w/3, h), 'line_right_v_b') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(w/2 - w_max_yes/2, h_yes, w/2 - w_max_yes/2, h), 'line_right_v_b') )
         
         #line bottom
-        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h-1, w/3, h-1), 'line_bottom') )
+        self.drawings_keys.append( gui.SvgSubcontainer.append(self, gui.SvgLine(0, h,w/2 - w_max_yes/2, h), 'line_bottom') )
 
         #central box line
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, flow_chart_graphics.RomboidBox(-romboid_w/2, line_length, romboid_w, romboid_h, self.box_text_content), 'box') )
@@ -1098,12 +1105,12 @@ class KRLStatementCase(KRLGenericParser):
 
         txt_true = gui.SvgText(romboid_w/2, romboid_h/2 + line_length -3, 'true')
         txt_true.attributes['text-anchor'] = 'start'
-        txt_true.attributes['dominant-baseline'] = 'bottom' #'central'
+        txt_true.attributes['dominant-baseline'] = 'baseline' #'middle'
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_true, 'true'))
 
-        txt_false = gui.SvgText(-romboid_w/2, romboid_h/2 + line_length -3, 'false')
+        txt_false = gui.SvgText(0, romboid_h + line_length, 'false')
         txt_false.attributes['text-anchor'] = 'end'
-        txt_false.attributes['dominant-baseline'] = 'bottom' #'central'
+        txt_false.attributes['dominant-baseline'] = 'hanging' #'central'
         self.drawings_keys.append( gui.SvgSubcontainer.append(self, txt_false, 'false'))
 
 
@@ -1211,7 +1218,7 @@ class KRLStatementSwitch(KRLGenericParser):
 
         return w_max+self.margins*2, h+self.margins*2
 
-    #overloads FlowInstruction.draw§()
+    #overloads FlowInstruction.draw()
     def draw(self):
         self.box_height = 0
         w, h = self.recalc_size_and_arrange_children()
@@ -1300,7 +1307,7 @@ class KRLProcedureParser(KRLGenericParser):
 
         return translation_result_tmp, file_lines
 
-    #overloads FlowInstruction.draw§()
+    #overloads FlowInstruction.draw()
     def draw(self):
         self.box_height = 50
         w, h = self.recalc_size_and_arrange_children()

@@ -6,7 +6,7 @@ class FlowInstruction(gui.SvgSubcontainer):
     drawings_keys = None
     box_height = 200
     box_width = 200
-    text_letter_width = 9
+    text_letter_width = 10
     box_text_content = ''
     margins = 5
 
@@ -15,6 +15,7 @@ class FlowInstruction(gui.SvgSubcontainer):
         self.box_text_content = box_text_content
         self.drawings_keys = []
         self.draw()
+        self.css_font_family = 'courier'
 
     def recalc_size_and_arrange_children(self):
         #remove all drawings prior to redraw it

@@ -1,4 +1,5 @@
 &ACCESS R
+&REL 1
 &COMMENT HandlerOnRobotFault
 DEF  IR_STOPM ( )
 ;-----------------------------------
@@ -29,7 +30,6 @@ DEF  IR_STOPM ( )
   O_START_MARK=false
   O_ENABLE_AIR_KNIFE = FALSE
   O_ENABLE_VORTEX = FALSE
-  O_TRIGGER_LASER = FALSE
   sysRobotState=RBT_STATE_UNDEFINED
   
   ;ENDFOLD (USER STOP)

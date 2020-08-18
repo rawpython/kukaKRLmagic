@@ -1,3 +1,5 @@
+# -*- coding: latin-1 -*-
+
 import sys
 import collections
 import functools
@@ -370,11 +372,11 @@ name_c[]    Name of the module in which the interpolator is in the main run
 snr_c       Number of the block in which the interpolator is in the main run
 i_executed  Indicates whether the block has already been executed by the interpreter (= TRUE) 
 p_arrived   Indicates where the robot is located on the path (only relevant for motion instructions)
- 0: Arrived at the target or auxiliary point of the motion
- 1: Target point not reached, i.e. robot is somewhere on the path
- 2: Not relevant
- 3: Arrived at the auxiliary point of a CIRC or SCIRC motion
- 4: On the move in the section between the start and the auxiliary point
+# 0: Arrived at the target or auxiliary point of the motion
+# 1: Target point not reached, i.e. robot is somewhere on the path
+# 2: Not relevant
+# 3: Arrived at the auxiliary point of a CIRC or SCIRC motion
+# 4: On the move in the section between the start and the auxiliary point
 p_name[]    Name or aggregate of the target or auxiliary point at which the robot is located
 SI01 … SI10 Caller stack in which the interpreter is situated
 """
