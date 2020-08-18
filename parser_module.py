@@ -41,7 +41,7 @@ class MouseNavArea(gui.Container):
         return (deltaY,)
 
     def center_view(self, emitter, x, y):
-        offset = 100
+        offset = 100 * self.zoom_absolute_position 
 
         x = float(x)
         wself = float(gui.from_pix(self.css_width))
@@ -73,7 +73,7 @@ class MouseNavArea(gui.Container):
                 c.css_top = gui.to_pix( top / self.zoom_absolute_position )
         
     def zoom(self, emitter, relative_value):
-        self.zoom_absolute_position = min(max(0, self.zoom_absolute_position + float(relative_value)*0.0003), 2.0)
+        self.zoom_absolute_position = min(max(0, self.zoom_absolute_position - float(relative_value)*0.0003), 2.0)
         self.set_zoom( self.zoom_absolute_position )
 
     def set_zoom(self, value):
@@ -96,7 +96,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         gui.HBox.__init__(self)
         self.css_align_items = 'flex-start'
         self.append(gui.ListView(width=300), 'list')
-        self.append(MouseNavArea(width=800, height=800), 'container')
+        self.append(MouseNavArea(width=800, height=900), 'container')
         
         self.children['list'].onselection.do(self.on_proc_list_selected)
         
