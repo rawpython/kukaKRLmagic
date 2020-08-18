@@ -47,13 +47,16 @@ class KRLProject():
         
         parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.r1_files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
         """
-
         self.modules.extend( [
+                parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1'))
+        ])
+        """self.modules.extend( [
                 parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
                 parser_module.KRLModule('geometrylib', self.r1_files['geometrylib.dat'], src_path_and_file=self.r1_files['geometrylib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
                 parser_module.KRLModule('sds7000', self.r1_files['sds7000.dat'], src_path_and_file=self.r1_files['sds7000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('geometrylib')) 
             ])
-
+        """
+        
     def get_module(self, name):
         for m in self.modules:
             if m.name == name:
@@ -89,8 +92,8 @@ class MyApp(App):
         project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
         main_container.append(project.get_module('sample_program'))
-        main_container.append(project.get_module('geometrylib'))
-        main_container.append(project.get_module('sds7000'))
+        #main_container.append(project.get_module('geometrylib'))
+        #main_container.append(project.get_module('sds7000'))
         #m = project.get_module('bas')
         #main_container.append(m)
 

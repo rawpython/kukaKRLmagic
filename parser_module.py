@@ -17,6 +17,71 @@ def fread_lines(file_path_and_name):
     return content
 
 
+class MouseNavArea(gui.Container):
+    zoom_absolute_position = 1.0
+    def __init__(self, *args, **kwargs):
+        gui.Container.__init__(self, *args, **kwargs)
+        self.style['overflow'] = 'hidden'
+        self.style['outline'] = '1px solid gray'
+        self.style['zoom'] = '1.0'
+        self.onmousemove.do(self.center_view)
+        self.onwheel.do(self.zoom, js_prevent_default=True, js_stop_propagation=True)
+        
+        
+    @gui.decorate_set_on_listener("(self, emitter, deltaY)")
+    @gui.decorate_event_js("var params={};" \
+            "params['deltaY']=event.deltaY;" \
+            "remi.sendCallbackParam('%(emitter_identifier)s','%(event_name)s',params);")
+    def onwheel(self, deltaY):
+        """Called when the mouse cursor moves inside the Widget.
+
+        Args:
+            deltaY (float): the relative scroll value
+        """
+        return (deltaY,)
+
+    def center_view(self, emitter, x, y):
+        offset = 100
+
+        x = float(x)
+        wself = float(gui.from_pix(self.css_width))
+
+        y = float(y)
+        hself = float(gui.from_pix(self.css_height))
+        for c in self.children.values():
+            c.css_position = 'relative'
+            wchild = wself
+            try:
+                wchild = gui.from_pix(c.css_width)
+            except:
+                wchild = float(c.attr_width)
+            wchild = wchild * self.zoom_absolute_position
+            if wself < wchild:
+                left = offset/2 -(wchild+offset-wself) * (x/wself)
+                #left = left + offset/2 - offset * (x/wself)
+                c.css_left = gui.to_pix( left / self.zoom_absolute_position )
+            
+            hchild = hself
+            try:
+                hchild = gui.from_pix(c.css_height)
+            except:
+                hchild = float(c.attr_height)
+            hchild = hchild * self.zoom_absolute_position
+            if hself < hchild:
+                top = offset/2-(hchild+offset-hself) * (y/hself)
+                #top = top + offset/2 - offset * (y/hself)
+                c.css_top = gui.to_pix( top / self.zoom_absolute_position )
+        
+    def zoom(self, emitter, relative_value):
+        self.zoom_absolute_position = min(max(0, self.zoom_absolute_position + float(relative_value)*0.0003), 2.0)
+        self.set_zoom( self.zoom_absolute_position )
+
+    def set_zoom(self, value):
+        self.zoom_absolute_position = value
+        for c in self.children.values():
+            c.style['zoom'] = str(value)
+
+
 class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
     file_path_name = ''   # the str path and file
     def __init__(self, file_path_name):
@@ -31,12 +96,18 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         gui.HBox.__init__(self)
         self.css_align_items = 'flex-start'
         self.append(gui.ListView(width=300), 'list')
-        self.append(gui.Container(width=800, style={'overflow-x':'scroll'}), 'container')
+        self.append(MouseNavArea(width=800, height=800), 'container')
+        
         self.children['list'].onselection.do(self.on_proc_list_selected)
         
     def on_proc_list_selected(self, widget, selected_key):
+        w = gui.from_pix(self.children['container'].css_width)
+        h = gui.from_pix(self.children['container'].css_height)
         self.children['container'].append(widget.children[selected_key].node, 'proc_to_view')
         widget.children[selected_key].node.draw()
+        best_zoom = min(w/float(widget.children[selected_key].node.attr_width), h/float(widget.children[selected_key].node.attr_height))
+        self.children['container'].set_zoom(best_zoom)
+
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
         translation_result_tmp = []
