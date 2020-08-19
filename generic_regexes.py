@@ -16,7 +16,8 @@ re_comment = line_begin + line_end
 #index_value = "(?:[0-9]*|[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*)"
 index_value = "(?:[^,;\{\}]*)"
 index_3d = "\[ *%s *(?:, *%s *){0,2}\]"%(index_value, index_value)
-variable_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *" + nc(index_3d) + "?")
+subfield = r"\.[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]*"
+variable_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *" + nc(index_3d) + "?" + nc(subfield) + "?")
 dat_name = c(r"[\$a-z_A-Z]{1}[a-z_A-Z0-9\.]* *")
 function_name = dat_name
 struct_name = dat_name
@@ -175,11 +176,18 @@ def split_varname_index(_var): #given potato[3,2] it returns 'potato','[3,2]',Tr
     size = ''
     is_array = False
     ret = re.search(c(index_3d), var)
+    subindex = ''
     if not ret is None:
         size = ret.groups()[0]
-        var = var.replace(size, '')
+        #var = var.replace(size, '')
+        _var = var
+        var = _var.split(size)[0]
+        try:
+            subindex = _var.split(size)[1]
+        except:
+            pass
         is_array = True
-    return var, size, is_array
+    return var, size, subindex, is_array
 
 def var_without_pointed_field(_var): #given potato.weight it returns 'potato', 'weight', is_pointed
     var = _var

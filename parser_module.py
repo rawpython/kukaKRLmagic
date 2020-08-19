@@ -19,6 +19,7 @@ def fread_lines(file_path_and_name):
 
 class MouseNavArea(gui.Container):
     zoom_absolute_position = 1.0
+    zoom_min_value = 0.0
     def __init__(self, *args, **kwargs):
         gui.Container.__init__(self, *args, **kwargs)
         self.style['overflow'] = 'hidden'
@@ -60,7 +61,9 @@ class MouseNavArea(gui.Container):
                 left = offset/2 -(wchild+offset-wself) * (x/wself)
                 #left = left + offset/2 - offset * (x/wself)
                 c.css_left = gui.to_pix( left / self.zoom_absolute_position )
-            
+            else:
+                c.css_left = "0px"
+
             hchild = hself
             try:
                 hchild = gui.from_pix(c.css_height)
@@ -71,9 +74,11 @@ class MouseNavArea(gui.Container):
                 top = offset/2-(hchild+offset-hself) * (y/hself)
                 #top = top + offset/2 - offset * (y/hself)
                 c.css_top = gui.to_pix( top / self.zoom_absolute_position )
+            else:
+                c.css_top = "0px"
         
     def zoom(self, emitter, relative_value):
-        self.zoom_absolute_position = min(max(0, self.zoom_absolute_position - float(relative_value)*0.0003), 2.0)
+        self.zoom_absolute_position = min(max(self.zoom_min_value, self.zoom_absolute_position - float(relative_value)*0.0003), 2.0)
         self.set_zoom( self.zoom_absolute_position )
 
     def set_zoom(self, value):
@@ -95,8 +100,10 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
 
         gui.HBox.__init__(self)
         self.css_align_items = 'flex-start'
-        self.append(gui.ListView(width=300), 'list')
-        self.append(MouseNavArea(width=800, height=900), 'container')
+        self.style['outline'] = '2px solid gray'
+        #self.css_background_color = 'lightgray'
+        self.append(gui.ListView(width=200, style={'margin': '0px'}), 'list')
+        self.append(MouseNavArea(width=1000, height=650), 'container')
         
         self.children['list'].onselection.do(self.on_proc_list_selected)
         
@@ -107,6 +114,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         widget.children[selected_key].node.draw()
         best_zoom = min(w/float(widget.children[selected_key].node.attr_width), h/float(widget.children[selected_key].node.attr_height))
         self.children['container'].set_zoom(best_zoom)
+        self.children['container'].zoom_min_value = best_zoom
 
 
     def parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines):
@@ -176,7 +184,8 @@ class KRLModule(gui.VBox):
     module_src = None   # KRLSrc instance
     def __init__(self, module_name, dat_path_and_file = '', src_path_and_file = '', imports_to_prepend = '', *args, **kwargs):
         super(KRLModule, self).__init__(*args, **kwargs)
-        self.append(gui.Label("MODULE: %s"%module_name))
+        self.css_align_items = 'flex-start'
+        self.append(gui.Label("MODULE: %s"%module_name, style={'font-weight':'bolder', 'font-size':'20px'}))
         self.name = module_name
         if len(dat_path_and_file):
             self.module_dat = KRLModuleDatFileParser(dat_path_and_file)

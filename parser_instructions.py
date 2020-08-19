@@ -152,7 +152,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
 
 
-        if "print('0')" in code_line_original:
+        if "profileRobotMeasures" in code_line_original:
             print("brakepoint")
 
 
@@ -232,7 +232,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
             #if the variable (struc field) is an array, we replace the type with a multi_dimensional_array 
             for var, type_name in variables_names_with_types.items():
-                var, size, is_array = generic_regexes.split_varname_index(var)
+                var, size, subindex, is_array = generic_regexes.split_varname_index(var)
                 if is_array:
                     type_name = "multi_dimensional_array(%s, %s)"%(type_name,size)
                     translation_result_tmp.append("    %s = %s"%(var,type_name))
@@ -377,7 +377,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 #if the variable is not declared as parameter, declare it in procedure/function body
                 #if actual_code_block is None or (not re.sub(generic_regexes.index_3d, '', var) in actual_code_block.param_names):
                 parent_function = self.get_parent_function()
-                var, size, is_array = generic_regexes.split_varname_index(var)
+                var, size, subindex, is_array = generic_regexes.split_varname_index(var)
 
                 if not parent_function is None:
                     parent_function.local_variables[var] = type_name
@@ -414,13 +414,13 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             type_name = elements[2]
             var = elements[3].strip()
             value = elements[4].strip()
-            var, size, is_array = generic_regexes.split_varname_index(var)
+            var, size, subindex, is_array = generic_regexes.split_varname_index(var)
 
             parent_function = self.get_parent_function()
 
             if not type_name is None: 
                 type_name = type_name.strip()
-                translation_result_tmp.append("%s%s = %s(%s)"%(var, size, type_name, value))
+                translation_result_tmp.append("%s%s%s = %s(%s)"%(var, size, subindex, type_name, value))
                 
                 #if there is a parent function, the variable name have to be appended to local_variables dictionary
                 if not parent_function is None:
@@ -432,11 +432,11 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                         parent_function.global_variables.append(generic_regexes.var_without_pointed_field(var)[0])
 
                 if is_array:
-                    translation_result_tmp.append("%s%s = %s"%(var, size, value))
+                    translation_result_tmp.append("%s%s%s = %s"%(var, size, subindex, value))
                 else:
-                    translation_result_tmp.append("%s = %s"%(var, value))
+                    translation_result_tmp.append("%s%s = %s"%(var, subindex, value))
 
-            node = flow_chart_graphics.FlowInstruction('%s = %s'%(var if not is_array else "%s%s"%(var, size), value))
+            node = flow_chart_graphics.FlowInstruction('%s%s = %s'%(var if not is_array else "%s%s"%(var, size), subindex, value))
             self.append(node)
 
 
