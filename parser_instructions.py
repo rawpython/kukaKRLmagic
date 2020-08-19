@@ -593,9 +593,7 @@ class KRLStatementRepeatUntil(KRLGenericParser):
         self.children['arrow'].set_fill('black')
 
         poly = gui.SvgPolyline(10)
-        poly.add_coord(self.box_width/2, h-self.box_height/2-line_length*1)
-        poly.add_coord(w/2, h-self.box_height/2-line_length*1)
-        poly.add_coord(w/2, h)
+        poly.add_coord(0, h-line_length*1)
         poly.add_coord(0, h)
         self.drawings_keys.append( self.append(poly, 'lendfor') )
         
