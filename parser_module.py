@@ -42,13 +42,14 @@ class MouseNavArea(gui.Container):
         return (deltaY,)
 
     def center_view(self, emitter, x, y):
-        offset = 100 * self.zoom_absolute_position 
-
         x = float(x)
         wself = float(gui.from_pix(self.css_width))
 
         y = float(y)
         hself = float(gui.from_pix(self.css_height))
+
+        offset_x = wself * self.zoom_absolute_position
+        offset_y = hself * self.zoom_absolute_position
         for c in self.children.values():
             c.css_position = 'relative'
             wchild = wself
@@ -57,12 +58,14 @@ class MouseNavArea(gui.Container):
             except:
                 wchild = float(c.attr_width)
             wchild = wchild * self.zoom_absolute_position
+            
             if wself < wchild:
-                left = offset/2 -(wchild+offset-wself) * (x/wself)
+                left = offset_x/2 -(wchild+offset_x-wself) * (x/wself)
                 #left = left + offset/2 - offset * (x/wself)
                 c.css_left = gui.to_pix( left / self.zoom_absolute_position )
             else:
                 c.css_left = "0px"
+
 
             hchild = hself
             try:
@@ -70,8 +73,9 @@ class MouseNavArea(gui.Container):
             except:
                 hchild = float(c.attr_height)
             hchild = hchild * self.zoom_absolute_position
+            
             if hself < hchild:
-                top = offset/2-(hchild+offset-hself) * (y/hself)
+                top = offset_y/2-(hchild+offset_y-hself) * (y/hself)
                 #top = top + offset/2 - offset * (y/hself)
                 c.css_top = gui.to_pix( top / self.zoom_absolute_position )
             else:
@@ -137,6 +141,9 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
+
+            if is_global:
+                parser_instructions.add_user_global_def('\n'.join(translation_result_tmp))
             
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
@@ -155,6 +162,9 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
             _translation_result_tmp, file_lines = node.parse(file_lines)
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
+
+            if is_global:
+                parser_instructions.add_user_global_def('\n'.join(translation_result_tmp))
         
         _translation_result_tmp, file_lines = parser_instructions.KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):

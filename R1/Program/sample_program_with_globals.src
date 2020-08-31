@@ -1,0 +1,10 @@
+&ACCESS RVP
+&PARAM EDITMASK = *
+&PARAM TEMPLATE = C:\KRC\Roboter\Template\vorgabe
+DEF sample_program_with_globals( )
+    
+END
+
+GLOBAL DEFFCT INT SampleFuncGlobal()
+    return 7
+ENDFCT

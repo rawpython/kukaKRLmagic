@@ -239,10 +239,12 @@ def interruptable_function_decorator(func):
         properly handle interrupts
     """
     def interruptable_function(*args, **kwargs):
+        ret = None
         try:
             threads_callstack[threading.currentThread].append(func)
-            func(*args, **kwargs)
+            ret = func(*args, **kwargs)
             mem = threads_callstack[threading.currentThread].pop()
+            return ret
         except KeyboardInterrupt:
             mem = threads_callstack[threading.currentThread].pop()
             #the resume makes it the interpreter to move up to the interrupt declaration level

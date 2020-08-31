@@ -78,6 +78,14 @@ instructions_defs = {
     'continue':             generic_regexes.a_line_containing( "CONTINUE" ), #in KRL Prevention of advance run stops.
 }
 
+#adds global functions, procedures, variables, structures to a single file that will be imported by all user modules
+def init_user_global_def():
+    with open('./global_defs_user.py', 'w+') as f:
+        f.writelines('#auto generated\nimport global_defs\n')
+def add_user_global_def(content):
+    with open('./global_defs_user.py', 'a+') as f:
+        f.writelines(content + '\n')
+
 
 uuid = 0
 
@@ -240,7 +248,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                     translation_result_tmp.append("    %s = %s()"%(var,type_name))
             
             if is_global:
-                translation_result_tmp.append("global_defs.%s = %s"%(struc_name, struc_name))
+                #translation_result_tmp.append("global_defs.%s = %s"%(struc_name, struc_name))
+                add_user_global_def("%s = %s"%(struc_name, struc_name))
         
         if instruction_name == 'if begin':
             condition = match_groups[0].strip()
@@ -382,15 +391,19 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 if not parent_function is None:
                     parent_function.local_variables[var] = type_name
 
+                res = ''
                 if parent_function is None or not var in parent_function.param_names:
                     #check if it is an array
                     if is_array:
-                        translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
+                        #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
+                        res = "%s = multi_dimensional_array(%s, %s)"%(var,type_name,size)
                     else:
-                        translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
+                        #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
+                        res = "%s = %s()"%(var,type_name)
 
                     if is_global:
                         translation_result_tmp.append("from global_defs import %s"%(var))
+
                 else:
                     #   #if the variable decl is a function parameter it have to be not declared again
                     #    # and we discard also an end of line comment
@@ -400,8 +413,12 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
                     if not parent_function is None: #if variable declaration is a procedure paramter
                         if not is_array: #this is intended to recreate enum, arrays are already transferred correctly
-                            translation_result_tmp.append(("global_defs." if is_global else "")+"%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name})
-
+                            #translation_result_tmp.append(("global_defs." if is_global else "")+"%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name})
+                            res = "%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name}
+                translation_result_tmp.append(res)
+                if is_global:
+                    add_user_global_def(res)
+                    
 
 
         if instruction_name == 'variable assignment':
@@ -418,9 +435,10 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
             parent_function = self.get_parent_function()
 
+            res = ''
             if not type_name is None: 
                 type_name = type_name.strip()
-                translation_result_tmp.append("%s%s%s = %s(%s)"%(var, size, subindex, type_name, value))
+                res = "%s%s%s = %s(%s)"%(var, size, subindex, type_name, value)
                 
                 #if there is a parent function, the variable name have to be appended to local_variables dictionary
                 if not parent_function is None:
@@ -432,9 +450,13 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                         parent_function.global_variables.append(generic_regexes.var_without_pointed_field(var)[0])
 
                 if is_array:
-                    translation_result_tmp.append("%s%s%s = %s"%(var, size, subindex, value))
+                    res = "%s%s%s = %s"%(var, size, subindex, value)
                 else:
-                    translation_result_tmp.append("%s%s = %s"%(var, subindex, value))
+                    res = "%s%s = %s"%(var, subindex, value)
+
+            translation_result_tmp.append(res)
+            if is_global:
+                add_user_global_def(res)
 
             node = flow_chart_graphics.FlowInstruction('%s%s = %s'%(var if not is_array else "%s%s"%(var, size), subindex, value))
             self.append(node)
@@ -463,7 +485,10 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 "    enum_name = '%(enum_name)s'\n" \
                 "    values_dict = {%(values)s}"
             #translation_result_tmp.append('%s = global_defs.enum(%s, "%s")'%(enum_name, ', '.join(element_list_with_values)))
-            translation_result_tmp.append(enum_template%{'enum_name': enum_name, 'values':', '.join(element_list_with_values)})
+            res = enum_template%{'enum_name': enum_name, 'values':', '.join(element_list_with_values)}
+            translation_result_tmp.append(res)
+            if is_global:
+                add_user_global_def(res)
             
         if instruction_name == 'wait sec':
             t = match_groups[0]
@@ -496,10 +521,15 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         if instruction_name == 'signal decl':
             is_global, signal_name, signal_start, signal_end = match_groups
             is_global = not is_global is None
+            res = ''
             if signal_end is None:
-                translation_result_tmp.append(("global_defs." if is_global else "") + "%s = signal(%s)"%(signal_name, signal_start))
+                res = "%s = signal(%s)"%(signal_name, signal_start)
             else:
-                translation_result_tmp.append(("global_defs." if is_global else "") + "%s = signal(%s, %s)"%(signal_name, signal_start, signal_end))
+                res = "%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)
+                
+            translation_result_tmp.append(res)
+            if is_global:
+                add_user_global_def(res)
         
         if instruction_name == 'function return':
             value = match_groups[0]

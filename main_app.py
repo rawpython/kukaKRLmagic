@@ -9,7 +9,7 @@ import remi.gui as gui
 from remi import start, App
 import threading
 import global_defs
-
+import parser_instructions
 
 def _i(module_name): #import
     return "import %s\nfrom %s import *\n"%(module_name, module_name)
@@ -53,10 +53,13 @@ class KRLProject():
         ])
         """
         self.modules.extend( [
-                parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
-                parser_module.KRLModule('geometrylib', self.r1_files['geometrylib.dat'], src_path_and_file=self.r1_files['geometrylib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
-                parser_module.KRLModule('sds7000', self.r1_files['sds7000.dat'], src_path_and_file=self.r1_files['sds7000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('geometrylib')) 
+                parser_module.KRLModule('sample_program_with_globals', self.r1_files['sample_program_with_globals.dat'], src_path_and_file=self.r1_files['sample_program_with_globals.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
+                parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
             ])
+        """
+                parser_module.KRLModule('geometrylib', self.r1_files['geometrylib.dat'], src_path_and_file=self.r1_files['geometrylib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
+                parser_module.KRLModule('sds7000', self.r1_files['sds7000.dat'], src_path_and_file=self.r1_files['sds7000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('geometrylib'))
+        """
         
         
     def get_module(self, name):
@@ -91,11 +94,15 @@ class MyApp(App):
         #creating a container VBox type, vertical (you can use also HBox or Widget)
         main_container = gui.VBox(style={'margin':'0px auto'})
 
+        #reset global definitions
+        parser_instructions.init_user_global_def()
+
         project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
+        main_container.append(project.get_module('sample_program_with_globals'))
         main_container.append(project.get_module('sample_program'))
-        main_container.append(project.get_module('geometrylib'))
-        main_container.append(project.get_module('sds7000'))
+        #main_container.append(project.get_module('geometrylib'))
+        #main_container.append(project.get_module('sds7000'))
         #m = project.get_module('bas')
         #main_container.append(m)
 
@@ -103,7 +110,7 @@ class MyApp(App):
         # maybe another process have to be created 
         #global_defs.robot_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
         #global_defs.robot_interpreter_thread.start()
-        #self.run_program()
+        self.run_program()
         global_defs.submit_interpreter_thread = None
         
         # returning the root widget
