@@ -402,7 +402,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                         res = "%s = %s()"%(var,type_name)
 
                     if is_global:
-                        translation_result_tmp.append("from global_defs import %s"%(var))
+                        #translation_result_tmp.append("from global_defs import %s"%(var))
+                        add_user_global_def(res)
 
                 else:
                     #   #if the variable decl is a function parameter it have to be not declared again

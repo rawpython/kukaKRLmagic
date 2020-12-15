@@ -80,7 +80,7 @@ STRUC TQM_TQDAT_T INT T11,T12,T13,T14,T15,T16,T21,T22,T23,T24,T25,T26,K1,K2,K3,K
 ;==================================
 ; External declarations:
 ;==================================
-EXT  BAS (BAS_COMMAND  :IN,REAL  :IN )
+;EXT  BAS (BAS_COMMAND  :IN,REAL  :IN )
 EXT  IR_STOPM ( )
 
 ;====================

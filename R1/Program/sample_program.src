@@ -46,7 +46,7 @@ CHAR string[3,20]
     print(testVariableGlobal)
     testVariableGlobal = SampleFuncGlobal()
     print(testVariableGlobal)
-    halt
+    ;halt
     string[1,] = "potato"
     string[2,] = "pizza"
     string[3,] = "pepperoni"
