@@ -2,6 +2,7 @@
 # -*- coding: latin-1 -*-
 
 import os
+from os import *
 #import parser_file
 import parser_module
 import remi

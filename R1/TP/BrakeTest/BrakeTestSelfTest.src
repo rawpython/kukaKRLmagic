@@ -1,0 +1,24 @@
+&ACCESS RVP
+&REL 1
+&PARAM TEMPLATE = C:\KRC\Roboter\Template\ExpertVorgabe
+&PARAM EDITMASK = *
+DEF BrakeTestSelfTest( )
+Int Ret
+Int IntArray[3]
+Real RealArray[1]
+
+MsgQuit("AcknowledgeToPerformSelfTest", brakeTestMdbName[])
+
+; Bei der naechsten Test-Durchfuehrung das Ansprechverhalten
+; einer Bremse oder aller Bremsen vorwählen
+IntArray[1] = simulateBrakeVel
+IntArray[2] = simulateBrakeTorque
+IntArray[3] = simulateBrakeIndex
+Ret = MD_CMD(brakeTestDevName[], "TRIGGER_SELF_TEST", IntArray[], RealArray[]) 
+
+; Test-Anforderung erzwingen
+MD_SETSTATE(brakeTestDevName[], #INITIALIZED)
+
+; Test-Durchfuehrung
+BrakeTestReq()
+END

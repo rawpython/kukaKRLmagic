@@ -1,0 +1,385 @@
+&ACCESS R
+&COMMENT Collision monitoring library
+DEF CollMonLib( )
+
+END
+
+; Schreibt die 6 Parameter (fuer jede Roboter-Achse einen) in den
+; entsprechenden Eintrag des $COLLMON_TOL PRO[]-Felds.
+; Falls ein Parameter nicht SAVE_CM_PRO_SETTING wird, behaelt der entsprechende
+; $COLLMON_TOL_PRO[]-Eintrag seinen Wert.
+GLOBAL DEF SET_CM_PRO_VALUES(CM_AX1:IN, CM_AX2:IN, CM_AX3:IN, CM_AX4:IN, CM_AX5:IN, CM_AX6:IN) 
+  INT TEST, CM_AX1, CM_AX2, CM_AX3, CM_AX4, CM_AX5, CM_AX6
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX1 
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[1]=CM_AX1 
+  ENDIF
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX2
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[2]=CM_AX2
+  ENDIF
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX3
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[3]=CM_AX3
+  ENDIF
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX4
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[4]=CM_AX4
+  ENDIF
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX5
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[5]=CM_AX5
+  ENDIF
+
+  ON_ERROR_PROCEED
+  TEST=CM_AX6
+  IF $ERR.NUMBER == 0 THEN
+    $COLLMON_TOL_PRO[6]=CM_AX6
+  ENDIF 
+   
+  ERR_CLEAR($ERR)
+  $COLLMON_IDX = 0
+END
+
+; Setzt $COLLMON_TOL_PRO[] auf die Defaultwerte aus.
+; der $CUSTOM.DAT
+GLOBAL DEF SET_CM_PRO_DEFAULT()
+  INT I
+
+  FOR I=1 TO 12
+    $COLLMON_TOL_PRO[I]=$COLLMON_TOL_PRO_DEF[I]
+  ENDFOR
+  $COLLMON_IDX = 0
+END  
+; Setzt die globalen Werte falls welche vorhanden oder
+; deaktiviert die verbesserte Kollisionsueberwachung indem
+; $COLLMON_TOL_PRO[] auf Null gesetzt wird.
+GLOBAL DEF SET_CM_PRO_INACTIVE()
+  INT I
+
+  IF $IMPROVED_COLLMON== TRUE THEN
+    FOR I=1 TO 12
+      IF (COLLMON_TOL_PRO[I] < 0) THEN ;no global COLLMON_TOL_PRO[I] exists
+        $COLLMON_TOL_PRO[I]=0
+        $COLLMON_IDX = 0
+      ELSE
+        $COLLMON_TOL_PRO[I]=COLLMON_TOL_PRO[I] ;sets $COLLMON_TOL_PRO[I] from global
+        $COLLMON_IDX=COLLMON_IDX
+      ENDIF
+    ENDFOR
+  ELSE
+	FOR I=1 TO 6    
+	  $TORQMON[I]=0
+	ENDFOR  
+  ENDIF
+END 
+
+; Setzt $COLLMON_MAX auf 0 zurueck. Alle folgenden 
+; Bewegungen gehen in die Maximumsbildung ein.
+GLOBAL DEF RESET_CM_MAX()
+  INT I
+
+  FOR I=1 TO 12
+    $COLLMON_MAX[I]=0
+  ENDFOR
+END
+
+; Sichert die aktuellen $COLLMON_TOL_PRO[]-Werte in ein
+; Parameter-Feld.
+; Parameter SETTING_IDX: Index des Collmon-Datensatz
+GLOBAL DEF SAVE_CM_PRO_SETTING(SETTING_IDX:IN)
+  INT SETTING_IDX,I
+
+  FOR I=1 to 12
+    COLLMON_SETTING[SETTING_IDX,I]=$COLLMON_TOL_PRO[I]
+  ENDFOR    
+END
+
+; Sichert die aktuellen $COLLMON_TOL_COM[]-Werte in ein
+; Parameter-Feld.
+; Parameter SETTING_IDX: Index des Collmon-Datensatz
+GLOBAL DEF SAVE_CM_COM_SETTING(SETTING_IDX:IN)
+  INT SETTING_IDX,I
+
+  FOR I=1 to 12
+    COLLMON_SETTING[SETTING_IDX,I]=$COLLMON_TOL_COM[I]
+  ENDFOR    
+END
+
+; Liest einen aktuell gespeicherten Collmon-Datensatz
+; Parameter SETTING_IDX: Index des Collmon-Datensatzes
+; Parameter VALUES: Array der Groesse 12 mit den Werten des Collmon-Datensatzes
+GLOBAL DEF READ_CM_SETTING(SETTING_IDX:IN, VALUES[]:OUT) 
+  INT SETTING_IDX
+  INT VALUES[]
+  INT I
+  
+  IF ((SETTING_IDX < 1) OR (SETTING_IDX > NUM_COLLMON_SETTINGS)) THEN
+    RETURN
+  ENDIF
+
+  FOR I = 1 TO 12
+    VALUES[I] = COLLMON_SETTING[SETTING_IDX,I]
+  ENDFOR
+END
+
+; Beschreibt einen Collmon-Datensatz
+; Parameter SETTING_IDX: Index des Collmon-Datensatzes
+; Parameter VALUES: Array der Groesse 12 mit den neuen Werten des Collmon-Datensatzes
+GLOBAL DEF WRITE_CM_SETTING(SETTING_IDX:IN, VALUES[]:OUT)
+  INT SETTING_IDX
+  INT VALUES[]
+  INT I
+
+  IF ((SETTING_IDX < 1) OR (SETTING_IDX > NUM_COLLMON_SETTINGS)) THEN
+    RETURN
+  ENDIF
+
+  FOR I = 1 TO 12
+    IF (VALUES[I] < 0) THEN
+      COLLMON_SETTING[SETTING_IDX,I] = 0
+    ELSE
+      IF VALUES[I] > 500 THEN
+        COLLMON_SETTING[SETTING_IDX,I] = 500
+      ELSE
+        COLLMON_SETTING[SETTING_IDX,I] = VALUES[I]
+      ENDIF
+    ENDIF
+  ENDFOR
+END
+
+; Sichert die aktuellen $COLLMON_MAX[]-Werte in ein
+; Collmon-Datensatz-Feld. Optional kann ein Skalierungs-Prozentwert 
+; angegeben werden.
+; Parameter SETTING_IDX: Index des Collmon-Datensatz
+; Parameter OFFSET: optionaler Offset auf alle Komponenten von $COLLMON_MAX[]. Default-Wert=0.
+; Expert call
+GLOBAL DEF SAVE_CM_MAX_SETTING(SETTING_IDX:IN,OFFSET:IN)
+  INT SETTING_IDX,OFFSET,TEST,OFFSET_WERT,I
+  DECL INT SET_VALUES[12]
+
+  ; Vorbelegung mit Default-Wert 0
+  OFFSET_WERT=0
+
+  ON_ERROR_PROCEED
+  TEST=OFFSET
+
+  IF $ERR.NUMBER == 0 THEN
+     OFFSET_WERT=OFFSET ; Parameter verwenden
+  ENDIF
+
+  GET_COLLMON_SET(SETTING_IDX, SET_VALUES[])
+  FOR I=1 to 12
+    ; durch Lernfahrt will man auskeschaltete Achsen nicht einschalten
+    IF COLLMON_SETTING[SETTING_IDX,I] <> 0 THEN      
+      COLLMON_SETTING[SETTING_IDX,I]=SET_VALUES[I] + OFFSET_WERT
+    ENDIF
+  ENDFOR  
+    
+  ERR_CLEAR($ERR)
+END
+
+; Schreibt einen gesicherten Collmon-Datensatz zurueck
+; in das $COLLMON_TOL_PRO[]-Feld.
+; Parameter SETTING_IDX: Index des Collmon-Datensatz
+GLOBAL DEF USE_CM_PRO_SETTING(SETTING_IDX:IN)
+  INT SETTING_IDX,I
+
+  FOR I=1 to 12
+    $COLLMON_TOL_PRO[I]=COLLMON_SETTING[SETTING_IDX,I]
+  ENDFOR    
+   $COLLMON_IDX = SETTING_IDX
+END
+; Initialisiert alle Collmon-Datensaetze auf 100.
+GLOBAL DEF INIT_CM_SETTINGS()
+  INT I,J
+
+  FOR I=1 TO NUM_COLLMON_SETTINGS
+    FOR J=1 TO 12
+      COLLMON_SETTING[I,J]=100
+    ENDFOR
+  ENDFOR
+END
+
+;used in old motion command to set all 12 values
+;Expert call
+GLOBAL DEF SET_CD_PARAMS (Index :IN)
+  DECL INT Index
+  IF (Index > 0) AND (Index < 31) THEN
+    USE_CM_PRO_SETTING (Index)
+  ELSE
+    SET_CM_PRO_INACTIVE()
+  ENDIF
+END
+
+;Expert call
+GLOBAL DEF USE_CD_PARAMS (Index :IN)
+  DECL INT Index, I
+  IF (Index > 0) AND (Index < 31) THEN
+    FOR I=1 to 12
+      COLLMON_TOL_PRO[I]=COLLMON_SETTING[Index,I] ; saves COLLMON_TOL_PRO for global using
+    ENDFOR 
+    COLLMON_IDX=Index
+    USE_CM_PRO_SETTING (Index)
+  ELSE
+    FOR I=1 to 12
+      COLLMON_TOL_PRO[I]=-1 ; saves COLLMON_TOL_PRO for global using
+    ENDFOR 
+    COLLMON_IDX=-1
+    SET_CM_PRO_INACTIVE()
+  ENDIF
+END
+
+;resets COLLMON_TOL_PRO on the begin of KRL module
+;by call BAS(#INITMOV,0)
+GLOBAL DEF RESET_CD_PARAMS ()
+  DECL INT I
+  FOR I=1 to 12
+    COLLMON_TOL_PRO[I]=-1 ; resets COLLMON_TOL_PRO for global using
+  ENDFOR 
+  COLLMON_IDX=-1
+END
+
+;used in spline command to set all 12 values by just one call
+;like  ...WITH $COLLMON_TOL_PRO[1]=USE_CM_PRO_VALUES(SETTING_IDX)
+GLOBAL DEFFCT INT USE_CM_PRO_VALUES(SETTING_IDX:IN) 
+  INT SETTING_IDX
+
+  IF (SETTING_IDX == -1) THEN ;Force deactivation
+      $COLLMON_TOL_PRO[2]=0
+      $COLLMON_TOL_PRO[3]=0
+      $COLLMON_TOL_PRO[4]=0
+      $COLLMON_TOL_PRO[5]=0
+      $COLLMON_TOL_PRO[6]=0
+      $COLLMON_TOL_PRO[7]=0
+      $COLLMON_TOL_PRO[8]=0
+      $COLLMON_TOL_PRO[9]=0
+      $COLLMON_TOL_PRO[10]=0
+      $COLLMON_TOL_PRO[11]=0
+      $COLLMON_TOL_PRO[12]=0
+      $COLLMON_IDX = 0
+      RETURN 0
+  ENDIF
+
+  IF (SETTING_IDX > 0) AND (SETTING_IDX < 31) THEN
+    $COLLMON_TOL_PRO[2]=COLLMON_SETTING[SETTING_IDX,2] 
+    $COLLMON_TOL_PRO[3]=COLLMON_SETTING[SETTING_IDX,3] 
+    $COLLMON_TOL_PRO[4]=COLLMON_SETTING[SETTING_IDX,4] 
+    $COLLMON_TOL_PRO[5]=COLLMON_SETTING[SETTING_IDX,5] 
+    $COLLMON_TOL_PRO[6]=COLLMON_SETTING[SETTING_IDX,6] 
+    $COLLMON_TOL_PRO[7]=COLLMON_SETTING[SETTING_IDX,7] 
+    $COLLMON_TOL_PRO[8]=COLLMON_SETTING[SETTING_IDX,8] 
+    $COLLMON_TOL_PRO[9]=COLLMON_SETTING[SETTING_IDX,9] 
+    $COLLMON_TOL_PRO[10]=COLLMON_SETTING[SETTING_IDX,10] 
+    $COLLMON_TOL_PRO[11]=COLLMON_SETTING[SETTING_IDX,11] 
+    $COLLMON_TOL_PRO[12]=COLLMON_SETTING[SETTING_IDX,12] 
+    $COLLMON_IDX = SETTING_IDX
+    RETURN COLLMON_SETTING[SETTING_IDX,1] 
+  ELSE
+    IF (COLLMON_TOL_PRO[1] < 0) THEN ;no global COLLMON_TOL_PRO[I] exists
+      $COLLMON_TOL_PRO[2]=0
+      $COLLMON_TOL_PRO[3]=0
+      $COLLMON_TOL_PRO[4]=0
+      $COLLMON_TOL_PRO[5]=0
+      $COLLMON_TOL_PRO[6]=0
+      $COLLMON_TOL_PRO[7]=0
+      $COLLMON_TOL_PRO[8]=0
+      $COLLMON_TOL_PRO[9]=0
+      $COLLMON_TOL_PRO[10]=0
+      $COLLMON_TOL_PRO[11]=0
+      $COLLMON_TOL_PRO[12]=0
+      $COLLMON_IDX = 0
+      RETURN 0
+    ELSE
+      $COLLMON_TOL_PRO[2]=COLLMON_TOL_PRO[2] ;sets $COLLMON_TOL_PRO[I] from global
+      $COLLMON_TOL_PRO[3]=COLLMON_TOL_PRO[3] ;sets $COLLMON_TOL_PRO[I] from global
+      $COLLMON_TOL_PRO[4]=COLLMON_TOL_PRO[4] ;sets $COLLMON_TOL_PRO[I] from global
+      $COLLMON_TOL_PRO[5]=COLLMON_TOL_PRO[5] ;sets $COLLMON_TOL_PRO[I] from global
+      $COLLMON_TOL_PRO[6]=COLLMON_TOL_PRO[6] ;sets $COLLMON_TOL_PRO[I] from global
+      IF (COLLMON_TOL_PRO[7]>-1) THEN
+        $COLLMON_TOL_PRO[7]=COLLMON_TOL_PRO[7] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[7]=0
+      ENDIF
+      IF (COLLMON_TOL_PRO[8]>-1) THEN
+        $COLLMON_TOL_PRO[8]=COLLMON_TOL_PRO[8] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[8]=0
+      ENDIF
+      IF (COLLMON_TOL_PRO[9]>-1) THEN
+        $COLLMON_TOL_PRO[9]=COLLMON_TOL_PRO[9] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[9]=0
+      ENDIF
+      IF (COLLMON_TOL_PRO[10]>-1) THEN
+        $COLLMON_TOL_PRO[10]=COLLMON_TOL_PRO[10] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[10]=0
+      ENDIF
+      IF (COLLMON_TOL_PRO[11]>-1) THEN
+        $COLLMON_TOL_PRO[11]=COLLMON_TOL_PRO[11] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[11]=0
+      ENDIF
+      IF (COLLMON_TOL_PRO[12]>-1) THEN
+        $COLLMON_TOL_PRO[12]=COLLMON_TOL_PRO[12] ;sets $COLLMON_TOL_PRO[I] from global
+      ELSE
+        $COLLMON_TOL_PRO[12]=0
+      ENDIF
+      $COLLMON_IDX=COLLMON_IDX
+      RETURN COLLMON_TOL_PRO[1] ;returns $COLLMON_TOL_PRO[I] from global      
+    ENDIF
+  ENDIF
+ENDFCT
+
+;Expert call
+GLOBAL DEF SET_TQ_VALUES ( TQ_AX1:IN, TQ_AX2:IN, TQ_AX3:IN, TQ_AX4:IN, TQ_AX5:IN, TQ_AX6:IN)
+  INT I, TQ_AX1, TQ_AX2, TQ_AX3, TQ_AX4, TQ_AX5, TQ_AX6
+
+  IF $IMPROVED_COLLMON== TRUE THEN
+	ON_ERROR_PROCEED
+	$COLLMON_TOL_PRO[1]=TQ_AX1
+	IF $ERR.NUMBER == 0 THEN
+	  $COLLMON_TOL_PRO[2]=TQ_AX2
+	  $COLLMON_TOL_PRO[3]=TQ_AX3
+	  $COLLMON_TOL_PRO[4]=TQ_AX4
+	  $COLLMON_TOL_PRO[5]=TQ_AX5
+	  $COLLMON_TOL_PRO[6]=TQ_AX6
+	ELSE
+     FOR I=1 TO 12
+		  $COLLMON_TOL_PRO[I]=$COLLMON_TOL_PRO_DEF[I]
+	  ENDFOR  
+	  ERR_CLEAR($ERR)
+	ENDIF
+   FOR I=1 TO 12   
+	  COLLMON_TOL_PRO[I]=$COLLMON_TOL_PRO[I]
+	ENDFOR 
+   COLLMON_IDX=0
+   $COLLMON_IDX = 0
+  ELSE
+	ON_ERROR_PROCEED
+	$TORQMON[1]=TQ_AX1
+	IF $ERR.NUMBER == 0 THEN
+	  $TORQMON[2]=TQ_AX2
+	  $TORQMON[3]=TQ_AX3
+	  $TORQMON[4]=TQ_AX4
+	  $TORQMON[5]=TQ_AX5
+	  $TORQMON[6]=TQ_AX6
+	ELSE
+	  FOR I=1 TO 12
+		  $TORQMON[I]=$TORQMON_DEF[I]
+	  ENDFOR  
+	  ERR_CLEAR($ERR)
+	ENDIF
+  ENDIF
+END

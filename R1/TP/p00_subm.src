@@ -1,0 +1,10 @@
+&ACCESS  R
+&COMMENT EXTERNAL package
+
+;referenced in config.dat but not found, this is a fake version
+DEF  P00_subm (COMMAND :IN,PGNO_FUNCT :IN)
+  DECL P00_COMMAND COMMAND
+  DECL FUNCT_TYPE PGNO_FUNCT
+  
+END
+

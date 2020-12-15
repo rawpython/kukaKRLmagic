@@ -1,0 +1,186 @@
+&ACCESS RVP
+&COMMENT BrkTst-main task
+&PARAM DISKPATH = KRC:\R1\TP\BrakeTest
+&PARAM EDITMASK = *
+DEF BRAKETESTREQ()
+;FOLD perform brake test
+
+;ENDFOLD
+;FOLD ;%{H};BRAKETEST
+DECL E6AXIS BtStPos
+INT Idx, i, Ret, IntArray[5]
+INT BitfieldAxesInTest
+REAL RealArray[1]
+
+if Varstate("$pro_ip.si01.name[]")==#declared  then
+  MsgQuit("AcknowledgeToManuallyPerformBrakeTest", brakeTestMdbName[])
+  MD_SETSTATE(brakeTestDevName[], #INITIALIZED)
+endif
+
+BAS (#INITMOV,0 )
+
+repeat
+  Ret = MD_CMD(brakeTestDevName[], "START_TEST", IntArray[], RealArray[])
+  if ( Ret <> 0 ) then
+    ; Entweder (Ret == +1) - dann liegt keine Testanforderung vor - oder
+    ; (Ret < 0) - dann wurde bereits eine Zustandsmeldung vom Treiber abgesetzt
+    Return
+  endif
+
+  ; Die Achsmasken aus der INI-Datei auslesen
+  BitfieldAxesInTest = IntArray[1]
+
+  BrakeTestStart()
+  BtStPos=$AXIS_ACT
+
+  i=1
+  FOR Idx = 1 TO 12
+   if ( ( BitfieldAxesInTest b_and i) == i ) then
+     if (Idx==5) AND $PAL_MODE AND NOT $DEF_A5LINK AND $DEF_A4FIX then
+       $PAL_MODE=FALSE
+     endif
+     repeat 
+     TestAxis(Idx)
+     PTP BtStPos
+     until GetResult()
+     if (Idx==5) AND NOT $PAL_MODE AND NOT $DEF_A5LINK AND $DEF_A4FIX then
+       $PAL_MODE=TRUE
+     endif
+   endif
+   i=i*2 
+  ENDFOR
+  WAIT FOR TRUE
+  Ret = MD_CMD(brakeTestDevName[], "END_TEST", IntArray[], RealArray[])
+until ( Ret == 0 )
+
+BrakeTestBack()
+END
+
+
+DEF TestAxis(AxisNr: IN)
+INT AxisNr
+INT Ret, NrFlag
+INT IntArray[3]
+REAL RealArray[1]
+AxNr=AxisNr
+IntArray[1] = AxisNr
+Ret = MD_CMD(brakeTestDevName[], "SELECT_TARGET", IntArray[], RealArray[])
+NrFlag=IntArray[1]
+BtIrNr=IntArray[3]
+$FLAG[NrFlag]=FALSE
+IF(AxNr<7) THEN
+$VEL_AXIS[AxNr]=IntArray[2]
+ELSE
+$VEL_EXTAX[AxNr-6]=IntArray[2]
+ENDIF
+INTERRUPT DECL BtIrNr WHEN $FLAG[NrFlag] DO Decelerate()
+INTERRUPT ON BtIrNr
+MoveAxis()
+END
+
+
+DEF MoveAxis()
+INT Ret
+INT IntArray[5]
+REAL RealArray[6]
+E6AXIS AxisRel
+$ADVANCE=0
+Ret = MD_CMD(brakeTestDevName[], "GET_ROB_ANGLES", IntArray[], RealArray[])
+AxisRel.A1=RealArray[1]
+AxisRel.A2=RealArray[2]
+AxisRel.A3=RealArray[3]
+AxisRel.A4=RealArray[4]
+AxisRel.A5=RealArray[5]
+AxisRel.A6=RealArray[6]
+Ret = MD_CMD(brakeTestDevName[], "GET_EXT_ANGLES", IntArray[], RealArray[])
+AxisRel.E1=RealArray[1]
+AxisRel.E2=RealArray[2]
+AxisRel.E3=RealArray[3]
+AxisRel.E4=RealArray[4]
+AxisRel.E5=RealArray[5]
+AxisRel.E6=RealArray[6]
+PTP $AXIS_ACT
+Ret = MD_CMD(brakeTestDevName[], "TRIGGER_TEST_RUN", IntArray[], RealArray[])
+PTP_REL AxisRel
+WAIT FOR TRUE
+; Hier kommt man nur hin, wenn die Bewegung zu Ende gefahren wurde.
+; Im Gutfall wird aber ein BRAKE / RESUME ausgeführt und damit diese Funktion verlassen
+MsgQuit("BT_MAX_AXIS_MOVE", brakeTestMdbName[])
+END
+
+
+DEF Decelerate()
+INT Ret
+INT IntArray[5]
+REAL RealArray[6]
+INTERRUPT OFF BtIrNr
+BRAKE
+Ret = MD_CMD(brakeTestDevName[], "FINISH_TEST_RUN", IntArray[], RealArray[])
+if ret <> 0 then
+  MsgNotify("FINISH_TEST_RUN returns %1 ", brakeTestMdbName[], ret)
+endif
+RESUME
+END
+
+
+DEFFCT BOOL GetResult()
+INT Ret
+INT IntArray[5]
+REAL RealArray[1]
+Decl CHAR DialogText[20]
+DECL CHAR AxNrText[10]
+
+Ret=MD_CMD(brakeTestDevName[], "GET_RESULT", IntArray[], RealArray[])
+SWITCH IntArray[1]
+ CASE 0
+  ; BT_BRAKE_OK
+  Return TRUE
+ CASE 1
+  ; BT_BRAKE_WEAK
+  Return TRUE
+ CASE 2
+  ;BT_BRAKE_NOT_OK
+  DialogText[] = "BT_BRAKE_NOT_OK"
+ CASE 3
+  ; BT_NO_BRAKING
+  DialogText[] = "BT_BRAKE_NOT_OK"
+ CASE 4
+  ; BT_MOTION_FAULT
+  DialogText[] = "BT_EVALUATION_FAILED"
+ CASE 5
+  ; BT_INCOMPLETE
+  DialogText[] = "BT_INCOMPLETE"
+ CASE 6
+  ; BT_REPEAT
+  Return FALSE
+ENDSWITCH
+
+IF(IntArray[2]<7) THEN
+  AxNrText[]="A "
+  AxNrText[2]=IntArray[2]+48
+ELSE
+  AxNrText[]="E "
+  AxNrText[2]=IntArray[2]+42
+ENDIF
+
+MsgDialog(ret, DialogText[], brakeTestMdbName[], AxNrText[], "TryAgain", "GoToPark",,,,,,TRUE)
+
+if Ret==7 then
+  ; Rückgabewert 7 = Softkey "TryAgain" ganz rechts
+  ; Testlauf wiederholen
+  Return FALSE
+endif
+
+;goto parkposition
+BrakeTestPark()
+WAIT FOR TRUE
+
+Ret = MD_CMD(brakeTestDevName[], "SIGNAL_PARK_POS", IntArray[], RealArray[])
+
+repeat
+  MsgNotify("ParkPositionReached", brakeTestMdbName[])
+  halt
+until false
+
+ENDFCT
+;ENDFOLD ;BRAKETEST
