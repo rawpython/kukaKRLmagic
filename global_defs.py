@@ -323,7 +323,8 @@ class Robot():
                     operate.DOLLAR__timer[i] = operate.DOLLAR__timer[i] + 1
         except:
             #timers are defined later in operate.dat
-            traceback.print_exc()
+            #traceback.print_exc()
+            pass
         if not self.internal_stop_flag:
             threading.Timer(0.001, self.clock).start()
 
