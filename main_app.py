@@ -110,9 +110,9 @@ class MyApp(App):
 
         # The interrupts use the main thread, so the robot program have to be executed in the main thread
         # maybe another process have to be created 
-        #global_defs.robot_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
-        #global_defs.robot_interpreter_thread.start()
-        #self.run_program()
+        global_defs.robot_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
+        global_defs.robot_interpreter_thread.start()
+        self.run_program()
         global_defs.submit_interpreter_thread = None
         
         # returning the root widget
