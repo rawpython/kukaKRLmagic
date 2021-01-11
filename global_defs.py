@@ -8,6 +8,12 @@ import traceback
 import sys
 import _thread
 
+try:
+    from robolink import *    # RoboDK API
+    from robodk import *      # Robot toolbox
+except:
+    print("RoboDK api not installed for the current python version")
+
 true = True
 false = False
 
@@ -152,10 +158,6 @@ class generic_struct():
         self.__dict__.update(value.__dict__)
     
 
-DOLLAR__vel = generic_struct(cp=0, ori1=0, ori2=0)
-DOLLAR__acc = generic_struct(cp=0, ori1=0, ori2=0)
-
-
 class enum():
     enum_name = ''
     values_dict = None
@@ -183,7 +185,10 @@ class enum():
         return self.actual_value
 
     def set_value(self, value):
-        self.actual_value = value
+        if issubclass(type(value), enum):
+            self.actual_value = value.actual_value
+        else:
+            self.actual_value = value
 
 
 class multi_dimensional_array():
@@ -222,12 +227,18 @@ class multi_dimensional_array():
         pass
 
     def set_value(self, value):
-        if type(value) == generic_struct:
+        if issubclass(type(value), generic_struct):
             self.data.set_value(value)
             return
         for i in range(0, len(value)):
             self.data[i] = value[i]
     
+
+def set_value(a,b):
+    if issubclass(type(a), enum) or issubclass(type(a), multi_dimensional_array) or issubclass(type(a), generic_struct):
+        a.set_value(b)
+    else:
+        a = b
 
 def fake_func():
     pass
@@ -300,6 +311,13 @@ jerk_struc = generic_struct
 #this is referenced in $operate.dat, I don't know the right definition
 call_stack = int
 
+
+import operate
+from operate import *
+import operate_r1
+from operate_r1 import *
+
+
 #to implement kinematics refer to https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html
 # or https://github.com/siddikui/Kuka-KR210-Kinematics
 # or https://github.com/Peroulis/6DOF-KUKA
@@ -310,14 +328,50 @@ class Robot():
     
     interrupt_actually_triggered = None
 
+    RDK = None
+    rdk_available = False
+    rdk_robot = None
+
+    module_operate_r1 = None
+
     def __init__(self, *args, **kwargs):
+        global DOLLAR__pos_act, DOLLAR__axis_act
+
         self.clock()
         self.check_interrupts()
+
+        try:
+            self.RDK = Robolink()
+            self.rdk_robot = self.RDK.ItemUserPick('Select a robot',ITEM_TYPE_ROBOT)
+            self.rdk_available = self.rdk_robot.Valid()
+            if not self.rdk_robot.Valid():
+                print("RoboDK not available. Robot not selected or not valid")
+            else:
+                pose = self.rdk_robot.Pose()
+                pos = Pose_2_KUKA(pose)
+                DOLLAR__pos_act.x=pos[0]
+                DOLLAR__pos_act.y=pos[1]
+                DOLLAR__pos_act.z=pos[2]
+                DOLLAR__pos_act.a=pos[3]
+                DOLLAR__pos_act.b=pos[4]
+                DOLLAR__pos_act.c=pos[5]
+
+                DOLLAR__axis_act.a1 = self.rdk_robot.Joints().tolist()[0]
+                DOLLAR__axis_act.a2 = self.rdk_robot.Joints().tolist()[1]
+                DOLLAR__axis_act.a3 = self.rdk_robot.Joints().tolist()[2]
+                DOLLAR__axis_act.a4 = self.rdk_robot.Joints().tolist()[3]
+                DOLLAR__axis_act.a5 = self.rdk_robot.Joints().tolist()[4]
+                DOLLAR__axis_act.a6 = self.rdk_robot.Joints().tolist()[5]
+                print("POS_ACT: " + str(DOLLAR__pos_act))
+                print("AXIS_ACT: " + str(DOLLAR__axis_act))
+        except:
+            print("RoboDK API not installed for the current python version")
+            traceback.print_exc()
+        
     
     def clock(self):
         global global_timers_count
         try:
-            import operate
             for i in range(1, global_timers_count+1):
                 if not operate.DOLLAR__timer_stop[i]:
                     operate.DOLLAR__timer[i] = operate.DOLLAR__timer[i] + 1
@@ -347,9 +401,22 @@ class Robot():
         self._do_not_stop_ADVANCE_on_next_IO = True
 
     def ptp(self, position, apo=None):
+        global DOLLAR__vel_axis, DOLLAR__acc_axis
+        if self.rdk_available:
+            self.rdk_robot.setSpeedJoints(DOLLAR__vel_axis[0])
+            self.rdk_robot.setAccelerationJoints(DOLLAR__acc_axis[0])
+            self.rdk_robot.MoveJ([position.a1, position.a2, position.a3, position.a4, position.a5, position.a6])
         print("PTP %s %s"%(position, apo))
 
     def lin(self, position, apo=None):
+        global DOLLAR__tool, DOLLAR__base, DOLLAR__vel, DOLLAR__acc
+        if self.rdk_available:
+            self.rdk_robot.setSpeed(speed_linear=DOLLAR__vel.cp*1000, accel_linear=DOLLAR__acc.cp*1000)
+            self.rdk_robot.setPoseFrame(KUKA_2_Pose([DOLLAR__base.x, DOLLAR__base.y, DOLLAR__base.z, DOLLAR__base.a, DOLLAR__base.b, DOLLAR__base.c]))
+            print(">>>>>>setPoseFrame:" + str(DOLLAR__base))
+            self.rdk_robot.setPoseTool(KUKA_2_Pose([DOLLAR__tool.x, DOLLAR__tool.y, DOLLAR__tool.z, DOLLAR__tool.a, DOLLAR__tool.b, DOLLAR__tool.c]))
+            print(">>>>>>setPoseTool:" + str(DOLLAR__tool))
+            self.rdk_robot.MoveL(KUKA_2_Pose([position.x, position.y, position.z, position.a, position.b, position.c]))
         print("LIN %s %s"%(position, apo))
 
     def ptp_rel(self, position, apo=None):
@@ -398,7 +465,4 @@ threads_callstack[threading.currentThread] = []
 #    if threading.currentThread == submit_interpreter_thread:
 #        return DOLLAR_pro_ip0
 #    return DOLLAR_pro_ip1
-
-
-
 
