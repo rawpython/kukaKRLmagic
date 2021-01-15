@@ -202,9 +202,15 @@ class multi_dimensional_array():
         self._type = _type
 
         if len(size)>1:
-            self.data = krl_list([multi_dimensional_array(_type, size[1:]) for x in range(0, size[0])])
+            #self.data = krl_list([multi_dimensional_array(_type, size[1:]) for x in range(0, size[0])])
+            self.data = []
+            for i in range(0, size[0]):
+                self.data.append(multi_dimensional_array(_type, size[1:]))
         else:
-            self.data = krl_list([_type()]*size[0])
+            #self.data = krl_list([_type()]*size[0])
+            self.data = []
+            for i in range(0, size[0]):
+                self.data.append(_type())
         
     def __getitem__(self, indexes):
         if not (type(indexes) == int) and len(indexes) == 1:

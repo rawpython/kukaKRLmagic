@@ -43,6 +43,9 @@ CHAR string[3,20]
     print({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
     print({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
     print({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30})
+    print(testVariableGlobal)
+    testVariableGlobal = SampleFuncGlobal()
+    print(testVariableGlobal)
 
     ;halt
     string[1,] = "potato"
