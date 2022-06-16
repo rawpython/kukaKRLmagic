@@ -169,7 +169,7 @@ class enum():
 
     def __call__(self, value = None):
         ret = self.__class__()
-        if not arg is None:
+        if not value is None:
             #self.actual_value = self.values_dict[value]
             self.actual_value = value
             ret.actual_value = self.actual_value

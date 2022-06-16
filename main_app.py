@@ -34,6 +34,7 @@ class KRLProject():
         self.scandir(self.dirs['STEU'], {}, self.steu_files)
 
         print("Processing kuka internals, please wait...")
+        """
         parser_module.KRLModule('global_defs_user', '', src_path_and_file=self.all_files['global_defs_user.src'], imports_to_prepend = _i('kuka_internals')),
         parser_module.KRLModule('kuka_internals', self.all_files['kuka_internals.dat'], src_path_and_file=self.all_files['kuka_internals.src'], imports_to_prepend = _i('global_defs')),
         parser_module.KRLModule('operate', self.r1_files['operate.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('kuka_internals')),
@@ -48,6 +49,7 @@ class KRLProject():
         parser_module.KRLModule('bas', '', src_path_and_file=self.r1_files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option') + _i('collmonlib')),
         
         parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.r1_files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
+        """
         print("Kuka internals, please wait...")
         """
         self.modules.extend( [
@@ -55,8 +57,8 @@ class KRLProject():
         ])
         """
         self.modules.extend( [
-                parser_module.KRLModule('sample_program_with_globals', self.r1_files['sample_program_with_globals.dat'], src_path_and_file=self.r1_files['sample_program_with_globals.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
-                parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
+                parser_module.KRLModule('scd1000', self.r1_files['scd1000.dat'], src_path_and_file=self.r1_files['scd1000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
+                #parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
             ])
         """
                 parser_module.KRLModule('geometrylib', self.r1_files['geometrylib.dat'], src_path_and_file=self.r1_files['geometrylib.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1')),
@@ -101,8 +103,8 @@ class MyApp(App):
 
         project = KRLProject( os.path.dirname(os.path.abspath(__file__)) )
 
-        main_container.append(project.get_module('sample_program_with_globals'))
-        main_container.append(project.get_module('sample_program'))
+        main_container.append(project.get_module('scd1000'))
+        #main_container.append(project.get_module('sample_program'))
         #main_container.append(project.get_module('geometrylib'))
         #main_container.append(project.get_module('sds7000'))
         #m = project.get_module('bas')
@@ -110,10 +112,10 @@ class MyApp(App):
 
         # The interrupts use the main thread, so the robot program have to be executed in the main thread
         # maybe another process have to be created 
-        global_defs.robot_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
-        global_defs.robot_interpreter_thread.start()
-        self.run_program()
-        global_defs.submit_interpreter_thread = None
+        #global_defs.robot_interpreter_thread = threading.Thread(target=self.run_program, daemon=False)
+        #global_defs.robot_interpreter_thread.start()
+        #self.run_program()
+        #global_defs.submit_interpreter_thread = None
         
         # returning the root widget
         return main_container

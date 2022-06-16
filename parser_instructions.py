@@ -451,16 +451,9 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                         parent_function.global_variables.append(generic_regexes.var_without_pointed_field(var)[0])
 
                 if is_array:
-                    res = """if hasattr(%(var)s%(size)s%(subindex)s, 'set_value'):
-    set_value(%(var)s%(size)s%(subindex)s, %(value)s)
-else:
-    %(var)s%(size)s%(subindex)s = %(value)s
-    """%{'var':var, 'size':size, 'subindex':subindex, 'value':value}
+                    res = """set_value(%(var)s%(size)s%(subindex)s, %(value)s)"""%{'var':var, 'size':size, 'subindex':subindex, 'value':value}
                 else:
-                    res = """if hasattr(%(var)s%(subindex)s, 'set_value'):
-    set_value(%(var)s%(subindex)s, %(value)s)
-else:
-    %(var)s%(subindex)s = %(value)s"""%{'var':var, 'subindex':subindex, 'value':value}
+                    res = """set_value(%(var)s%(subindex)s, %(value)s)"""%{'var':var, 'subindex':subindex, 'value':value}
 
             translation_result_tmp.extend(res.split('\n'))
             if is_global:
