@@ -13,7 +13,7 @@ import global_defs
 import parser_instructions
 
 def _i(module_name): #import
-    return "import %s\nfrom %s import *\n"%(module_name, module_name)
+    return '#include "%s.h";\n'%module_name
 
 
 class KRLProject():
@@ -57,7 +57,7 @@ class KRLProject():
         ])
         """
         self.modules.extend( [
-                parser_module.KRLModule('scd1000', self.r1_files['scd1000.dat'], src_path_and_file=self.r1_files['scd1000.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
+                parser_module.KRLModule('scd1000', self.r1_files['scd1000.dat'], src_path_and_file=self.r1_files['scd1000.src'], imports_to_prepend = _i('global_defs') + _i("assert") + _i('config') + _i('operate_r1') + _i('global_defs_user')),
                 #parser_module.KRLModule('sample_program', self.r1_files['sample_program.dat'], src_path_and_file=self.r1_files['sample_program.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('operate_r1') + _i('global_defs_user')),
             ])
         """
@@ -127,4 +127,4 @@ class MyApp(App):
 
 if __name__ == "__main__":
     # starts the webserver
-    start(MyApp, address='127.0.0.1', port=8081, start_browser=True, username=None, password=None, update_interval=0.005)
+    start(MyApp, address='127.0.0.1', port=8083, start_browser=True, username=None, password=None, update_interval=0.005)

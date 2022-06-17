@@ -137,7 +137,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             translation_result_tmp, file_lines = self.parse_single_instruction(code_line_original, code_line, instruction_name, match_groups, file_lines)
 
             if endofline_comment_to_append.startswith(';'):
-                endofline_comment_to_append = '#' + endofline_comment_to_append
+                endofline_comment_to_append = '//' + endofline_comment_to_append
 
             if len(translation_result_tmp)>0:
                 if '[,]' in translation_result_tmp[0]:
@@ -175,7 +175,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             return translation_result_tmp, file_lines
 
         if instruction_name == 'halt':
-            translation_result_tmp.append("assert(False) # halt")
+            translation_result_tmp.append("assert(false); # halt")
             node = flow_chart_graphics.FlowInstruction('HALT')
             self.append(node)
 
@@ -192,7 +192,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            translation_result_tmp.append("global_defs.robot.lin(%s)"%position)
+            translation_result_tmp.append("robot.lin(%s)"%position)
             node = flow_chart_graphics.FlowInstruction('LIN %s'%position)
             self.append(node)
 
@@ -201,7 +201,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            translation_result_tmp.append("global_defs.robot.ptp(%s)"%position)
+            translation_result_tmp.append("robot.ptp(%s)"%position)
             node = flow_chart_graphics.FlowInstruction('PTP %s'%position)
             self.append(node)
 
@@ -210,7 +210,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             position = position.replace(" c_dis", ", c_dis")
             position = position.replace(" c_ptp", ", c_ptp")
             position = position.replace(" c_ori", ", c_ori")
-            translation_result_tmp.append("global_defs.robot.circ(%s)"%position)
+            translation_result_tmp.append("robot.circ(%s)"%position)
             node = flow_chart_graphics.FlowInstruction('CIRC %s'%position)
             self.append(node)
 
@@ -236,24 +236,25 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             # class struc_name():
             #   var_name = type_name()
 
-            translation_result_tmp.append("class %s(generic_struct):"%struc_name)
+            translation_result_tmp.append("struct %s{"%struc_name)
 
             #if the variable (struc field) is an array, we replace the type with a multi_dimensional_array 
             for var, type_name in variables_names_with_types.items():
                 var, size, subindex, is_array = generic_regexes.split_varname_index(var)
                 if is_array:
-                    type_name = "multi_dimensional_array(%s, %s)"%(type_name,size)
-                    translation_result_tmp.append("    %s = %s"%(var,type_name))
+                    translation_result_tmp.append("    multi_dimensional_array<%s> %s%s;"%(type_name, var, size))
                 else:
-                    translation_result_tmp.append("    %s = %s()"%(var,type_name))
+                    translation_result_tmp.append("    %s %s;"%(type_name, var))
             
+            translation_result_tmp.append("};")
+
             if is_global:
                 #translation_result_tmp.append("global_defs.%s = %s"%(struc_name, struc_name))
                 add_user_global_def("%s = %s"%(struc_name, struc_name))
         
         if instruction_name == 'if begin':
             condition = match_groups[0].strip()
-            translation_result_tmp.append("if " + condition + ":")
+            translation_result_tmp.append("if( " + condition + " ){")
             node = KRLStatementIf(condition)
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
@@ -272,9 +273,9 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             step = match_groups[2]
 
             if not step is None: 
-                translation_result_tmp.append("for %s in range(%s, %s + 1, %s):"%(initialization_variable, initialization_value, value_end, step.strip()))
+                translation_result_tmp.append("for( %(varname)s=%(init_val)s; %(varname)s<%(end_val)s; %(varname)s+=%(step)s){"%{"varname":initialization_variable, "init_val":initialization_value, "end_val":value_end, "step":step.strip()})
             else:
-                translation_result_tmp.append("for %s in range(%s, %s + 1):"%(initialization_variable, initialization_value, value_end))
+                translation_result_tmp.append("for( %(varname)s=%(init_val)s; %(varname)s<%(end_val)s; %(varname)s++){"%{"varname":initialization_variable, "init_val":initialization_value, "end_val":value_end})
 
             node = KRLStatementFor(initialization_variable, initialization_value, value_end, step)
             self.append(node)
@@ -285,7 +286,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         
         if instruction_name == 'while begin':
             condition = match_groups[0].strip()
-            translation_result_tmp.append("while " + condition + ":")
+            translation_result_tmp.append("while( " + condition + " ){")
             node = KRLStatementWhile(condition)
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
@@ -293,7 +294,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 translation_result_tmp.extend(_translation_result_tmp)
 
         if instruction_name == 'repeat':
-            translation_result_tmp.append("while True:")
+            translation_result_tmp.append("while( true ){")
             node = KRLStatementRepeatUntil()
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
@@ -301,7 +302,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 translation_result_tmp.extend(_translation_result_tmp)
 
         if instruction_name == 'loop begin':
-            translation_result_tmp.append("while True:")
+            translation_result_tmp.append("while( true ){")
             node = KRLStatementLoop()
             self.append(node)
             _translation_result_tmp, file_lines = node.parse(file_lines)
@@ -396,26 +397,26 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                     #check if it is an array
                     if is_array:
                         #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
-                        res = "%s = multi_dimensional_array(%s, %s)"%(var,type_name,size)
+                        res = "multi_dimensional_array<%s> %s%s;"%(type_name, var, size)
                     else:
                         #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
-                        res = "%s = %s()"%(var,type_name)
+                        res = "%s %s;"%(type_name, var)
 
                     if is_global:
                         #translation_result_tmp.append("from global_defs import %s"%(var))
                         add_user_global_def(res)
 
                 else:
+                    pass
                     #   #if the variable decl is a function parameter it have to be not declared again
                     #    # and we discard also an end of line comment
                     #    if not parent_function is None:
                     #        parent_function.pass_to_be_added = True
                     #endofline_comment_to_append = ""
 
-                    if not parent_function is None: #if variable declaration is a procedure paramter
-                        if not is_array: #this is intended to recreate enum, arrays are already transferred correctly
-                            #translation_result_tmp.append(("global_defs." if is_global else "")+"%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name})
-                            res = "%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name}
+                    #if not parent_function is None: #if variable declaration is a procedure paramter
+                    #    if not is_array: #this is intended to recreate enum, arrays are already transferred correctly
+                    #        res = "%(var)s = %(typ)s(%(var)s)"%{'var':var,'typ':type_name}
                 translation_result_tmp.append(res)
                 if is_global:
                     add_user_global_def(res)
@@ -439,7 +440,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             res = ''
             if not type_name is None: 
                 type_name = type_name.strip()
-                res = "%s%s%s = %s(%s)"%(var, size, subindex, type_name, value)
+                res = "%s %s%s%s = %s;"%(type_name, var, size, subindex, value)
                 
                 #if there is a parent function, the variable name have to be appended to local_variables dictionary
                 if not parent_function is None:
@@ -451,21 +452,20 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                         parent_function.global_variables.append(generic_regexes.var_without_pointed_field(var)[0])
 
                 if is_array:
-                    res = """set_value(%(var)s%(size)s%(subindex)s, %(value)s)"""%{'var':var, 'size':size, 'subindex':subindex, 'value':value}
+                    res = """%(var)s%(size)s%(subindex)s = %(value)s;"""%{'var':var, 'size':size, 'subindex':subindex, 'value':value}
                 else:
-                    res = """set_value(%(var)s%(subindex)s, %(value)s)"""%{'var':var, 'subindex':subindex, 'value':value}
+                    res = """%(var)s%(subindex)s = %(value)s;"""%{'var':var, 'subindex':subindex, 'value':value}
 
-            translation_result_tmp.extend(res.split('\n'))
             if is_global:
                 add_user_global_def(res)
+            translation_result_tmp.extend(res.split('\n'))
 
             node = flow_chart_graphics.FlowInstruction('%s%s = %s'%(var if not is_array else "%s%s"%(var, size), subindex, value))
             self.append(node)
 
-
         if instruction_name == 'function call':
             self.get_parent_function().calling_list.append(match_groups[0])
-            translation_result_tmp.append(code_line.strip())
+            translation_result_tmp.append(code_line.strip() + ";")
             node = flow_chart_graphics.FlowInstruction('CALL %s'%code_line.strip())
             self.append(node)
 
@@ -482,9 +482,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                 i = i + 1
             #translation_result_tmp.append('%s = global_defs.enum(%s, "%s", %s)'%(enum_name, 'global_defs' if is_global else 'sys.modules[__name__]', enum_name, ', '.join(element_list_with_values)))
             enum_template = \
-                "class %(enum_name)s(global_defs.enum): #enum\n" \
-                "    enum_name = '%(enum_name)s'\n" \
-                "    values_dict = {%(values)s}"
+                "enum %(enum_name)s {%(values)s};"
             #translation_result_tmp.append('%s = global_defs.enum(%s, "%s")'%(enum_name, ', '.join(element_list_with_values)))
             res = enum_template%{'enum_name': enum_name, 'values':', '.join(element_list_with_values)}
             translation_result_tmp.append(res)
@@ -493,13 +491,13 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             
         if instruction_name == 'wait sec':
             t = match_groups[0]
-            translation_result_tmp.append('robot.wait_sec(%s)'%t)
+            translation_result_tmp.append('robot.wait_sec(%s);'%t)
             node = flow_chart_graphics.FlowInstruction('WAIT SEC %s'%t)
             self.append(node)
 
         if instruction_name == 'wait for':
             condition = match_groups[0]
-            translation_result_tmp.append('while not (%s):time.sleep(0.1)'%condition)
+            translation_result_tmp.append('while( !(%s) )sleep(0.1);'%condition)
             node = flow_chart_graphics.FlowInstruction('WAIT FOR %s'%condition)
             self.append(node)
 
@@ -524,9 +522,9 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             is_global = not is_global is None
             res = ''
             if signal_end is None:
-                res = "%s = signal(%s)"%(signal_name, signal_start)
+                res = "signal %s(%s);"%(signal_name, signal_start)
             else:
-                res = "%s = signal(%s, %s)"%(signal_name, signal_start, signal_end)
+                res = "signal %s(%s, %s);"%(signal_name, signal_start, signal_end)
                 
             translation_result_tmp.append(res)
             if is_global:
@@ -534,7 +532,7 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
         
         if instruction_name == 'function return':
             value = match_groups[0]
-            translation_result_tmp.append("return" if value is None else ("return " + value))
+            translation_result_tmp.append("return;" if value is None else ("return " + value + ";"))
             node = flow_chart_graphics.FlowInstruction('RETURN %s'%value)
             self.append(node)
 
@@ -562,8 +560,9 @@ class KRLStatementRepeatUntil(KRLGenericParser):
 
         if instruction_name == 'until':
             self.condition = match_groups[0].strip()
-            translation_result_tmp.append("    if %s:"%self.condition)
-            translation_result_tmp.append("        " + "break")
+            #translation_result_tmp.append("    if %s:"%self.condition)
+            #translation_result_tmp.append("        " + "break")
+            translation_result_tmp.append("}while( %s );"%self.condition)
             self.pass_to_be_added = False
             self.stop_statement_found = True
 
@@ -659,6 +658,8 @@ class KRLStatementWhile(KRLGenericParser):
             self.pass_to_be_added = False
             self.stop_statement_found = True
 
+            translation_result_tmp.append("}")
+
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
             translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
@@ -740,6 +741,8 @@ class KRLStatementLoop(KRLGenericParser):
             self.pass_to_be_added = False
             self.stop_statement_found = True
 
+            translation_result_tmp.append("}")
+
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
             translation_result_tmp.extend(generic_regexes.indent_lines(_translation_result_tmp, 1))
@@ -820,6 +823,8 @@ class KRLStatementFor(KRLGenericParser):
         if instruction_name == 'for end':
             self.pass_to_be_added = False
             self.stop_statement_found = True
+
+            translation_result_tmp.append("}")
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
@@ -918,13 +923,14 @@ class KRLStatementIf(KRLGenericParser):
 
         if instruction_name == 'else':
             self.yes_done = True
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
-            translation_result_tmp.append("else:")
+            #if self.pass_to_be_added:
+            #    translation_result_tmp.append('    pass')
+            translation_result_tmp.append("}else{")
             self.pass_to_be_added = True
         if instruction_name == 'if end':
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
+            #if self.pass_to_be_added:
+            #    translation_result_tmp.append('    pass')
+            translation_result_tmp.append("}")
             self.pass_to_be_added = False
 
             self.stop_statement_found = True
@@ -1177,8 +1183,8 @@ class KRLStatementSwitch(KRLGenericParser):
             self.pass_to_be_added = False
 
         if instruction_name == 'case':
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
+            #if self.pass_to_be_added:
+            #    translation_result_tmp.append('    break;')
             case_value = match_groups[0]
 
             condition = "%s == %s:"%(self.value_to_switch, case_value)
@@ -1189,11 +1195,11 @@ class KRLStatementSwitch(KRLGenericParser):
             node = KRLStatementCase(condition)
             
             if self.first_switch_instruction:
-                translation_result_tmp.append("if " + condition)
+                translation_result_tmp.append("if( " + condition + "){")
                 KRLGenericParser.append(self, node)
             else:
                 self.actual_case_node.yes_done = True
-                translation_result_tmp.append("elif " + condition)
+                translation_result_tmp.append("}else if( " + condition + " ){")
                 self.actual_case_node.append(node)
             
             self.actual_case_node = node
@@ -1203,15 +1209,17 @@ class KRLStatementSwitch(KRLGenericParser):
 
 
         if instruction_name == 'default':
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
-            translation_result_tmp.append("else:")
+            #if self.pass_to_be_added:
+            #    translation_result_tmp.append('    pass')
+            translation_result_tmp.append("}else{")
             self.actual_case_node.yes_done = True
 
             
         if instruction_name == 'endswitch':
             self.pass_to_be_added = False
             self.stop_statement_found = True
+
+            translation_result_tmp.append("}")
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):
@@ -1258,6 +1266,7 @@ class KRLStatementSwitch(KRLGenericParser):
         txt.attributes['dominant-baseline'] = 'top' #'central'
         self.drawings_keys.append( KRLGenericParser.append(self, txt, 'text') )
 
+
 class InterruptObject(flow_chart_graphics.FlowInstruction):
     number = 0
     is_global = False
@@ -1303,8 +1312,8 @@ class KRLProcedureParser(KRLGenericParser):
 
         translation_result = [] #here are stored the results of instructions translations from krl to python 
         _translation_result, file_lines = KRLGenericParser.parse(self, file_lines)
-        if len(self.global_variables) > 0:
-            translation_result.append("    global " + ', '.join(self.global_variables))
+        #if len(self.global_variables) > 0:
+        #    translation_result.append("    global " + ', '.join(self.global_variables))
         translation_result.extend(_translation_result)
 
         return translation_result, file_lines
@@ -1322,13 +1331,11 @@ class KRLProcedureParser(KRLGenericParser):
 
         if instruction_name == 'procedure end': 
             self.stop_statement_found = True
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
+            translation_result_tmp.append('}')
         
         if instruction_name == 'function end':
             self.stop_statement_found = True
-            if self.pass_to_be_added:
-                translation_result_tmp.append('    pass')
+            translation_result_tmp.append('}')
 
         _translation_result_tmp, file_lines = KRLGenericParser.parse_single_instruction(self, code_line_original, code_line, instruction_name, match_groups, file_lines)
         if len(_translation_result_tmp):

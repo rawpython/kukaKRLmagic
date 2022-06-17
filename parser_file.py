@@ -330,7 +330,7 @@ def parse(filename_in, filename_out, write_mode, imports_to_prepend=''):
                     items = items.groups()
                     code_line = re.sub( reg, items[0] + "(",  code_line )
                 code_line = code_line.replace('}', ')')
-                code_line = code_line.replace('{', 'generic_struct(')
+                code_line = code_line.replace('{', '(')
                 #putting = after field name
                 while True:
                     fields_and_values = re.search('[:\(\{\=,)]{1} *([^:,\(\{="\)\} ]+) ([^\)=\},; ]+)', code_line)

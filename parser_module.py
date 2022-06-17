@@ -126,42 +126,82 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
 
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
+            def filter_zero_sized(v):
+                return len(v) > 0
+            param_list = list(filter(filter_zero_sized,param_list))
             param_names = [x.split(':')[0].strip() for x in param_list]
+            param_direction = [x.split(':')[1].strip() for x in param_list]
             param_names = [re.sub(generic_regexes.index_3d, '', x) for x in param_names]
             is_global = not match_groups[0] is None 
             procedure_name = match_groups[2]
-            translation_result_tmp.append("@global_defs.interruptable_function_decorator")
-            translation_result_tmp.append( "def " + procedure_name + "(" + ", ".join(param_names) + "):" )
+            #translation_result_tmp.append("@global_defs.interruptable_function_decorator")
             
             node = parser_instructions.KRLProcedureParser( procedure_name, param_names )
+            
+
             #self.append(node)
             li = gui.ListItem(node.name)
             li.node = node
             self.children['list'].append(li)
             _translation_result_tmp, file_lines = node.parse(file_lines)
+
+            proc_def = "void " + procedure_name + "("
+            parameters_def = []
+            index = 0
+            for param in param_names:
+                if len(param.strip()):
+                    if param in node.local_variables.keys():
+                        parameters_def.append( node.local_variables[param] + ("&" if param_direction[index].lower() == 'out' else "") + " " + param )
+                index += 1
+            proc_def += ", ".join(parameters_def)
+            proc_def += "){"
+            translation_result_tmp.append( proc_def )
+
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
+
+            #translation_result_tmp.extend("}")
 
             if is_global:
                 parser_instructions.add_user_global_def('\n'.join(translation_result_tmp))
             
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
+            def filter_zero_sized(v):
+                return len(v) > 0
+            param_list = list(filter(filter_zero_sized,param_list))
             param_names = [x.split(':')[0].strip() for x in param_list]
+            param_direction = [x.split(':')[1].strip() for x in param_list]
             param_names = [re.sub(generic_regexes.index_3d, '', x) for x in param_names]
             procedure_name = match_groups[3]
             is_global = not match_groups[0] is None 
             return_value_type_name = match_groups[2]
-            translation_result_tmp.append("@global_defs.interruptable_function_decorator")
-            translation_result_tmp.append( "def " + procedure_name + "(" + ", ".join(param_names) + "): #function returns %s"%return_value_type_name )
+            #translation_result_tmp.append("@global_defs.interruptable_function_decorator")
+            #translation_result_tmp.append( "def " + procedure_name + "(" + ", ".join(param_names) + "): #function returns %s"%return_value_type_name )
 
             node = parser_instructions.KRLFunctionParser( procedure_name, param_names, return_value_type_name )
+
             li = gui.ListItem(node.name)
             li.node = node
             self.children['list'].append(li)
             _translation_result_tmp, file_lines = node.parse(file_lines)
+
+            func_def = return_value_type_name + " " + procedure_name + "("
+            parameters_def = []
+            index = 0
+            for param in param_names:
+                if len(param.strip()):
+                    if param in node.local_variables.keys():
+                        parameters_def.append( node.local_variables[param] +  ("&" if param_direction[index].lower() == 'out' else "") + " " + param )
+                index += 1
+            func_def += ", ".join(parameters_def)
+            func_def += "){"
+            translation_result_tmp.append( func_def )
+
             if len(_translation_result_tmp):
                 translation_result_tmp.extend(_translation_result_tmp)
+
+            #translation_result_tmp.extend("}")
 
             if is_global:
                 parser_instructions.add_user_global_def('\n'.join(translation_result_tmp))
@@ -206,7 +246,7 @@ class KRLModule(gui.VBox):
             
             file_lines = fread_lines(dat_path_and_file)
             translation_result, file_lines = self.module_dat.parse(file_lines)
-            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, 'w+') as f:
+            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.h"%self.name, 'w+') as f:
                 f.write(imports_to_prepend)
                 for l in translation_result:
                     f.write(l + '\n')
@@ -217,7 +257,7 @@ class KRLModule(gui.VBox):
             self.append(self.module_src)
             file_lines = fread_lines(src_path_and_file)
             translation_result, file_lines = self.module_src.parse(file_lines)
-            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.py"%self.name, ('a+' if has_dat else 'w+')) as f:
+            with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.c"%self.name, 'w+') as f:
                 if not has_dat:
                     f.write(imports_to_prepend)
                 for l in translation_result:
