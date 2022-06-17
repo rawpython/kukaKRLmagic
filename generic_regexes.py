@@ -28,6 +28,10 @@ re_string = '((?!r)"[^"]+")' #KRL strings can contain special sequences for pyth
 re_string_python = '(r"[^"]+")'
 re_binary_number = "'b([0-1]+)'"
 
+re_not = nc("[ \)]") + c("not") + nc("[ \(]")
+re_and = nc("[ \)]") + c("and") + nc("[ \(]")
+re_or = nc("[ \)]") + c("or") + nc("[ \(]")
+
 enum_value = '(#[^ ,\[\]\(\)\{\}\+\-\*/\'\"]+)'
 
 
@@ -92,8 +96,9 @@ def prepare_instruction_for_parsing(code_line):
                     break
                 items = items.groups()
                 code_line = re.sub( reg, items[0] + "(",  code_line )
-            code_line = code_line.replace('}', ')')
-            code_line = code_line.replace('{', 'generic_struct(')
+            #code_line = code_line.replace('}', ')')
+            #code_line = code_line.replace('{', 'generic_struct(')
+            
             #putting = after field name
             while True:
                 fields_and_values = re.search('[:\(\{\=,)]{1} *([^:,\(\{="\)\} ]+) ([^\)=\},; ]+)', code_line)
@@ -102,7 +107,7 @@ def prepare_instruction_for_parsing(code_line):
                 field_and_value = code_line[fields_and_values.span()[0]+1:fields_and_values.span()[1]]
                 field_and_value = field_and_value.strip()
                 #replace the first occurrence of the found field, with the field replacing the first space occurrence with equal = sign 
-                code_line = code_line.replace(field_and_value, field_and_value.replace(' ', '=', 1), 1)
+                code_line = code_line.replace(field_and_value,"." + field_and_value.replace(' ', '=', 1), 1)
 
     #replace strings "..." with r"..." to skip python special sequences
     code_line_new = ''
@@ -111,7 +116,7 @@ def prepare_instruction_for_parsing(code_line):
         if r is None:
             break
         code_line_new = code_line_new + code_line[0:r.span()[0]]
-        code_line_new = code_line_new + 'r' + code_line[r.span()[0]:r.span()[1]]
+        code_line_new = code_line_new + code_line[r.span()[0]:r.span()[1]]
         code_line = code_line[r.span()[1]:]
     code_line = code_line_new + code_line
 
@@ -121,6 +126,27 @@ def prepare_instruction_for_parsing(code_line):
         value = result.groups()[0]
         code_line = code_line.replace(code_line[result.span()[0]:result.span()[1]], "0b%s"%value) 
 
+    while True:
+        result = re.search(re_not,code_line)
+        if result is None:
+            break
+        value = result.groups()[0]
+        code_line = code_line.replace(code_line[result.span()[0]+1:result.span()[1]-1], "!") 
+    
+    while True:
+        result = re.search(re_and,code_line)
+        if result is None:
+            break
+        value = result.groups()[0]
+        code_line = code_line.replace(code_line[result.span()[0]+1:result.span()[1]-1], "&&") 
+
+    while True:
+        result = re.search(re_or,code_line)
+        if result is None:
+            break
+        value = result.groups()[0]
+        code_line = code_line.replace(code_line[result.span()[0]+1:result.span()[1]-1], "||") 
+    
     return (code_line, endofline_comment_to_append)
 
 

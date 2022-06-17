@@ -1,7 +1,12 @@
+#include "operate.h"
+#include "operate_r1.h"
+
+#include <thread>
+#include <functional>
 #include <vector>
 using namespace std;
 
-typename float real;
+typedef float real;
 
 template <class T>
 class krl_list : public vector<T>{
@@ -9,7 +14,77 @@ class krl_list : public vector<T>{
 };
 
 bool _not(bool value){return !value;}
-    
+
+struct e6pos {
+
+	float	X;
+	float	Y;
+	float	Z;
+
+	float	A;
+	float	B;
+	float	C;
+
+    e6pos operator+(const e6pos& other){
+        e6pos res;
+        return res;
+    }
+};
+
+struct E6AXIS {
+
+	float	A1;
+	float	A2;
+	float	A3;
+	float	A4;
+	float	A5;
+	float	A6;
+
+};
+
+class signal{
+    bool* start_address;
+    bool* end_address;
+    signal(bool* pstart, bool* pend){
+        start_address = pstart;
+        end_address = pend;
+    }
+
+    signal(bool* pstart){
+        start_address = pstart;
+        end_address = pstart;
+    }
+
+    void operator = (int value){
+        bool* address = start_address;
+        while(address <= end_address){
+            address = value & 1;
+            address++;
+        }
+    }
+
+    int operator = (){
+        int res = 0;
+        int index = 0;
+        bool* address = start_address;
+        while(address <= end_address){
+            res = res | ((*address) << index);
+            address++;
+            index++;
+        }
+        return res;
+    }
+
+    void operator = (bool value){
+        *start_address = value;
+    }
+
+    bool operator = (){
+        return *start_address;
+    }
+};
+
+/*
 class generic_struct{
     def __init__(self, *args, **kwargs):
         for k,v in kwargs.items():
@@ -17,30 +92,30 @@ class generic_struct{
                 kwargs[k] = real(v)
 
         self.__dict__.update(kwargs)
-        /*
-        in the case where a structure (inheriting a generic_struct) gets as parameter a generic_struct
-         DECL JERK_STRUC DEF_JERK_STRUC={CP 500.000,ORI 50000.0,AX {A1 1000.00,A2 1000.00,A3 1000.00,A4 1000.00,A5 1000.00,A6 1000.00,E1 1000.00,E2 1000.00,E3 1000.00,E4 1000.00,E5 1000.00,E6 1000.00}} ; jerk value for the spline. CP: [m/Sec3], ORI: [[GRAD/Sec3], AX: [[GRAD/Sec3] (rotatory) resp. [m/Sec3] (linear)
-         def_jerk_struc = jerk_struc(generic_struct(cp=500.000,ori=50000.0,ax=generic_struct(a1=1000.00,a2=1000.00,a3=1000.00,a4=1000.00,a5=1000.00,a6=1000.00,e1=1000.00,e2=1000.00,e3=1000.00,e4=1000.00,e5=1000.00,e6=1000.00)))
-        */
+        
+        //in the case where a structure (inheriting a generic_struct) gets as parameter a generic_struct
+        // DECL JERK_STRUC DEF_JERK_STRUC={CP 500.000,ORI 50000.0,AX {A1 1000.00,A2 1000.00,A3 1000.00,A4 1000.00,A5 1000.00,A6 1000.00,E1 1000.00,E2 1000.00,E3 1000.00,E4 1000.00,E5 1000.00,E6 1000.00}} ; jerk value for the spline. CP: [m/Sec3], ORI: [[GRAD/Sec3], AX: [[GRAD/Sec3] (rotatory) resp. [m/Sec3] (linear)
+        // def_jerk_struc = jerk_struc(generic_struct(cp=500.000,ori=50000.0,ax=generic_struct(a1=1000.00,a2=1000.00,a3=1000.00,a4=1000.00,a5=1000.00,a6=1000.00,e1=1000.00,e2=1000.00,e3=1000.00,e4=1000.00,e5=1000.00,e6=1000.00)))
+        
         if not args is None and len(args) > 0:
             if issubclass(type(args[0]),generic_struct):
                 self.__dict__.update(args[0].__dict__)
     
     //geometric addition
     def __add__(self, other):
-        /* Tests on robot
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
-            result
-            {X 11.000000, Y 22.000000, Z 33.000000, A 0.000000, B 0.000000, C 0.000000} 
-            {X 8.000000, Y 21.000000, Z 33.000000, A 90.000000, B 0.000000, C 0.000000} 
-            {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
-            {X 11.000000, Y 17.000000, Z 32.000000, A 0.000000, B 0.000000, C 90.000000} 
-            {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
-        */
+        // Tests on robot
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 0, B 0, C 0}))
+        //    result
+        //    {X 11.000000, Y 22.000000, Z 33.000000, A 0.000000, B 0.000000, C 0.000000} 
+        //    {X 8.000000, Y 21.000000, Z 33.000000, A 90.000000, B 0.000000, C 0.000000} 
+        //    {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
+        //    {X 11.000000, Y 17.000000, Z 32.000000, A 0.000000, B 0.000000, C 90.000000} 
+        //    {X 13.000000, Y 22.000000, Z 29.000000, A 0.000000, B 90.000000, C 0.000000} 
+        
         import math
         ret = generic_struct(self)
         a = ret.a
@@ -64,19 +139,19 @@ class generic_struct{
         other.y = y
         other.z = z
 
-        """
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
-            LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
-            result
-            {X 11.000000, Y 22.000000, Z 33.000000, A 10.000000, B 20.000000, C 30.000000} 
-            {X 8.000000, Y 21.000000, Z 33.000000, A 100.000000, B 20.000000, C 30.000000} 
-            {X 13.000000, Y 22.000000, Z 29.000000, A 154.000000, B 67.7312, C -177.273000} 
-            {X 11.000000, Y 17.000000, Z 32.000000, A 20.283, B -9.3912, C 116.548} 
-            {X 13.000000, Y 22.000000, Z 29.000000, A 154.494, B 67.7312, C -177.273} 
-        """
+        
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 90, B 0, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 90, C 0}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 0, B 0, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+        //    LOG(PTOS({X 10, Y 20, Z 30, A 90, B 90, C 90}:{X 1, Y 2, Z 3, A 10, B 20, C 30}))
+        //    result
+        //    {X 11.000000, Y 22.000000, Z 33.000000, A 10.000000, B 20.000000, C 30.000000} 
+        //    {X 8.000000, Y 21.000000, Z 33.000000, A 100.000000, B 20.000000, C 30.000000} 
+        //    {X 13.000000, Y 22.000000, Z 29.000000, A 154.000000, B 67.7312, C -177.273000} 
+        //    {X 11.000000, Y 17.000000, Z 32.000000, A 20.283, B -9.3912, C 116.548} 
+        //    {X 13.000000, Y 22.000000, Z 29.000000, A 154.494, B 67.7312, C -177.273} 
+        
         from scipy.spatial.transform import Rotation as R
         r1 = R.from_euler('xyz', [self.a,self.b,self.c], True)
         r2 = R.from_euler('xyz', [other.a,other.b,other.c], True)
@@ -97,7 +172,7 @@ class generic_struct{
     def set_value(self, value):
         self.__dict__.update(value.__dict__)
 }
-
+*/
 /*
 template <class T>
 class multi_dimensional_array{
@@ -148,108 +223,55 @@ class multi_dimensional_array{
     
 */
 
-void fake_func(){
 
-}
+int global_timers_count = 64;
+
+bool DOLLAR__inputs[4096] = {false};
+bool DOLLAR__outputs[4096] = {false};
+
+
+//this is referenced in $operate.dat, I don't know the right definition
+typedef int call_stack;
+
+
+bool interrupt_flags[128] = {false};
+class InterruptData{
+    typedef std::function<bool()> callback;
+    callback fcond;
+    callback fcall;
+
+    InterruptData(callback cond, callback call){
+        fcond = cond;
+        fcall = call;
+    }
+};
+
+InterruptData interrupts[128];
+
+//to implement kinematics refer to https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html
+// or https://github.com/siddikui/Kuka-KR210-Kinematics
+// or https://github.com/Peroulis/6DOF-KUKA
+
+class Robot(){
+    bool _do_not_stop_ADVANCE_on_next_IO;
+
+    bool internal_stop_flag;
     
+    int interrupt_actually_triggered;
 
-
-def interruptable_function_decorator(func):
-    """ A decorator to handle interrupts 
-        robot functions have to be decorated with this decorator to make it possible trace the calling stack and
-        properly handle interrupts
-    """
-    def interruptable_function(*args, **kwargs):
-        ret = None
-        try:
-            threads_callstack[threading.currentThread].append(func)
-            ret = func(*args, **kwargs)
-            mem = threads_callstack[threading.currentThread].pop()
-            return ret
-        except KeyboardInterrupt:
-            mem = threads_callstack[threading.currentThread].pop()
-            #the resume makes it the interpreter to move up to the interrupt declaration level
-            # if the level does not correspont to the interrupt level, raise again the Exception to move upper
-            if len(threads_callstack[threading.currentThread]) == 0:
-                print("Program structure inadmissible for RESUME")
-            if not threads_callstack[threading.currentThread][-1] == robot.interrupt_actually_triggered.function_in_which_it_is_defined:
-                raise(KeyboardInterrupt('asd'))
-            
-    return interruptable_function
-
-
-interrupt_flags = {}
-interrupt_rising_edge_flags = {} #TODO for each interrupt, here is stored if the condition is already triggered
-interrupts = {} #this contains function pointers to interrupt subprograms, these have to be called by thread
-class InterruptData():
-    function_to_call = None
-    function_in_which_it_is_defined = None
-    function_to_get_condition_status = None
-    condition_status_mem = False
-    def __init__(self, fcall, fdef, fcond):
-        self.function_to_call = fcall
-        self.function_in_which_it_is_defined = fdef
-        self.function_to_get_condition_status = fcond
-        self.condition_status_mem = False
-    def probe_interrupt(self):
-        s = self.function_to_get_condition_status()
-        if s and not self.condition_status_mem:
-            robot.interrupt_actually_triggered = self
-            self.function_to_call()
-        self.condition_status_mem = s
-
-for i in range(1, 129):
-    interrupt_flags[i] = False #activated by interrupt on
-    interrupts[i] = InterruptData(fake_func, fake_func, fake_func)
-
-
-global_timers_count = 64
-
-DOLLAR__inputs = {}
-DOLLAR__outputs = {}
-for i in range(1, 4097):
-    DOLLAR__inputs[i] = False
-    DOLLAR__outputs[i] = False
-
-def signal(io, io_end_range=None):
-    return 0
-
-#circ_type = int
-
-jerk_struc = generic_struct
-
-#this is referenced in $operate.dat, I don't know the right definition
-call_stack = int
-
-
-import operate
-from operate import *
-import operate_r1
-from operate_r1 import *
-
-
-#to implement kinematics refer to https://ros-planning.github.io/moveit_tutorials/doc/getting_started/getting_started.html
-# or https://github.com/siddikui/Kuka-KR210-Kinematics
-# or https://github.com/Peroulis/6DOF-KUKA
-class Robot():
-    _do_not_stop_ADVANCE_on_next_IO = False
-
-    internal_stop_flag = False
-    
-    interrupt_actually_triggered = None
-
+    thread clock_thread;
+    /*
     RDK = None
     rdk_available = False
     rdk_robot = None
+    */
 
-    module_operate_r1 = None
+    //module_operate_r1 = None
 
-    def __init__(self, *args, **kwargs):
-        global DOLLAR__pos_act, DOLLAR__axis_act
-
-        self.clock()
-        self.check_interrupts()
-
+    Robot(){
+        internal_stop_flag = false;
+        clock_thread = thread(this->clock);
+        /*
         try:
             self.RDK = Robolink()
             self.rdk_robot = self.RDK.ItemUserPick('Select a robot',ITEM_TYPE_ROBOT)
@@ -277,49 +299,53 @@ class Robot():
         except:
             print("RoboDK API not installed for the current python version")
             traceback.print_exc()
-        
-    
-    def clock(self):
-        global global_timers_count
-        try:
-            for i in range(1, global_timers_count+1):
-                if not operate.DOLLAR__timer_stop[i]:
-                    operate.DOLLAR__timer[i] = operate.DOLLAR__timer[i] + 1
-        except:
-            #timers are defined later in operate.dat
-            #traceback.print_exc()
-            pass
-        if not self.internal_stop_flag:
-            threading.Timer(0.001, self.clock).start()
+        */
+    }
 
-    def check_interrupts(self):
-        global interrupts
-        for iterrupt_number, interrupt_def in interrupts.items():
-            interrupt_def.probe_interrupt()
-        if not self.internal_stop_flag:
-            threading.Timer(0.001, self.check_interrupts).start()
-    def resume_interrupt(self): 
-        #this generate a KeyboardInterrupt to the main thread (the one that executes the robot program)
-        # the KeyboardInterrupt is correctly handled in interruptable_function_decorator
-        # to make it possible resume the thread at the correct point WOOOOW
-        _thread.interrupt_main()
+    ~Robot(){
+        internal_stop_flag = true;
+        clock_thread.join();
+    }
 
-    def wait_sec(self, t):
-        time.sleep(t)
+    void clock(){
+        while( !this->internal_stop_flag ){
+            for(int i = 0; i < global_timers_count; i++){
+                if( !DOLLAR__timer_stop[i] ){
+                    DOLLAR__timer[i] = DOLLAR__timer[i] + 1;
+                }
+            }
+            sleep(0.001);
+        }    
+    }
 
-    def do_not_stop_ADVANCE_on_next_IO(self):
-        self._do_not_stop_ADVANCE_on_next_IO = True
+    void resume_interrupt(){
+        //this generate a KeyboardInterrupt to the main thread (the one that executes the robot program)
+        // the KeyboardInterrupt is correctly handled in interruptable_function_decorator
+        // to make it possible resume the thread at the correct point WOOOOW
+        _thread.interrupt_main();
+    }
 
-    def ptp(self, position, apo=None):
-        global DOLLAR__vel_axis, DOLLAR__acc_axis
-        if self.rdk_available:
+    void wait_sec(flaot t){
+        sleep(t);
+    }
+
+    void do_not_stop_ADVANCE_on_next_IO(){
+        _do_not_stop_ADVANCE_on_next_IO = true;
+    }
+
+    void ptp(e6pos position, bool apo=false){
+        /*
+        if( self.rdk_available ){
             self.rdk_robot.setSpeedJoints(DOLLAR__vel_axis[0])
             self.rdk_robot.setAccelerationJoints(DOLLAR__acc_axis[0])
             self.rdk_robot.MoveJ([position.a1, position.a2, position.a3, position.a4, position.a5, position.a6])
-        print("PTP %s %s"%(position, apo))
+        }
+        */
+        printf("PTP \n"); //%s %s"%(position, apo))
+    }
 
-    def lin(self, position, apo=None):
-        global DOLLAR__tool, DOLLAR__base, DOLLAR__vel, DOLLAR__acc
+    void lin(e6pos position, bool apo=false){
+        /*
         if self.rdk_available:
             self.rdk_robot.setSpeed(speed_linear=DOLLAR__vel.cp*1000, accel_linear=DOLLAR__acc.cp*1000)
             self.rdk_robot.setPoseFrame(KUKA_2_Pose([DOLLAR__base.x, DOLLAR__base.y, DOLLAR__base.z, DOLLAR__base.a, DOLLAR__base.b, DOLLAR__base.c]))
@@ -327,22 +353,27 @@ class Robot():
             self.rdk_robot.setPoseTool(KUKA_2_Pose([DOLLAR__tool.x, DOLLAR__tool.y, DOLLAR__tool.z, DOLLAR__tool.a, DOLLAR__tool.b, DOLLAR__tool.c]))
             print(">>>>>>setPoseTool:" + str(DOLLAR__tool))
             self.rdk_robot.MoveL(KUKA_2_Pose([position.x, position.y, position.z, position.a, position.b, position.c]))
-        print("LIN %s %s"%(position, apo))
+        */
+        printf("LIN \n"); //%s %s"%(position, apo))
+    }
 
-    def ptp_rel(self, position, apo=None):
-        print("PTP_REL %s %s"%(position, apo))
+    void ptp_rel(e6pos position, bool apo=false){
+        printf("PTP_REL \n");//%s %s"%(position, apo))
+    }
 
-    def lin_rel(self, position, apo=None):
-        print("LIN_REL %s %s"%(position, apo))
+    void lin_rel(e6pos position, bool apo=false){
+        printf("LIN_REL \n"); //%s %s"%(position, apo))
+    }
 
-    def circ(self, position, apo=None):
-        print("CIRC %s %s"%(position, apo))
+    void circ(e6pos position, bool apo=false){
+        printf("CIRC \n"); //%s %s"%(position, apo))
+    }
+};
 
-    def __del__(self):
-        self.internal_stop_flag = True
+Robot robot();
 
-robot = Robot()
 
+/*
 """
 STRUC PRO_IP CHAR NAME[32],INT SNR,CHAR NAME_C[32],INT SNR_C,CHAR NAME_C_TRL[32],INT SNR_C_TRL,BOOL I_EXECUTED,INT P_ARRIVED,CHAR P_NAME[24],CALL_STACK SI01,SI02,SI03,SI04,SI05,SI06,SI07,SI08,SI09,SI10
 
@@ -365,14 +396,18 @@ SI01 … SI10 Caller stack in which the interpreter is situated
 # SEL_NAME name of the selected program
 # PRO_IP_NAME[] name of the current module
 # PRO_IP_SNR current block in the current module
+*/
 
+/*
 submit_interpreter_thread = None
 robot_interpreter_thread = None
+*/
 
+/*
 threads_callstack = {} #thread:functionpointer[]
 threads_callstack[threading.currentThread] = []
 #def get_current_pro_ip():
 #    if threading.currentThread == submit_interpreter_thread:
 #        return DOLLAR_pro_ip0
 #    return DOLLAR_pro_ip1
-
+*/

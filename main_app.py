@@ -13,7 +13,7 @@ import global_defs
 import parser_instructions
 
 def _i(module_name): #import
-    return '#include "%s.h";\n'%module_name
+    return '#include "%s.h"\n'%module_name
 
 
 class KRLProject():
@@ -34,7 +34,7 @@ class KRLProject():
         self.scandir(self.dirs['STEU'], {}, self.steu_files)
 
         print("Processing kuka internals, please wait...")
-        """
+        
         parser_module.KRLModule('global_defs_user', '', src_path_and_file=self.all_files['global_defs_user.src'], imports_to_prepend = _i('kuka_internals')),
         parser_module.KRLModule('kuka_internals', self.all_files['kuka_internals.dat'], src_path_and_file=self.all_files['kuka_internals.src'], imports_to_prepend = _i('global_defs')),
         parser_module.KRLModule('operate', self.r1_files['operate.dat'], src_path_and_file='', imports_to_prepend = _i('global_defs') + _i('kuka_internals')),
@@ -49,7 +49,7 @@ class KRLProject():
         parser_module.KRLModule('bas', '', src_path_and_file=self.r1_files['bas.src'], imports_to_prepend = _i('global_defs') + _i('config') + _i('robcor_dat') + _i('machine_dat') + _i('steu_option') + _i('collmonlib')),
         
         parser_module.KRLModule('ir_stopm', '', src_path_and_file=self.r1_files['ir_stopm.src'], imports_to_prepend = _i('global_defs')),
-        """
+        
         print("Kuka internals, please wait...")
         """
         self.modules.extend( [

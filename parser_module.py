@@ -127,7 +127,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         if instruction_name == 'procedure begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             def filter_zero_sized(v):
-                return len(v) > 0
+                return len(v.strip()) > 0
             param_list = list(filter(filter_zero_sized,param_list))
             param_names = [x.split(':')[0].strip() for x in param_list]
             param_direction = [x.split(':')[1].strip() for x in param_list]
@@ -168,7 +168,7 @@ class KRLModuleSrcFileParser(parser_instructions.KRLGenericParser, gui.HBox):
         if instruction_name == 'function begin':
             param_list = code_line.split('(')[1].split(')')[0].split(',')
             def filter_zero_sized(v):
-                return len(v) > 0
+                return len(v.strip()) > 0
             param_list = list(filter(filter_zero_sized,param_list))
             param_names = [x.split(':')[0].strip() for x in param_list]
             param_direction = [x.split(':')[1].strip() for x in param_list]
@@ -260,6 +260,7 @@ class KRLModule(gui.VBox):
             with open(os.path.dirname(os.path.abspath(__file__)) + "/%s.c"%self.name, 'w+') as f:
                 if not has_dat:
                     f.write(imports_to_prepend)
+                f.write('#include "%s.h"\n'%self.name)
                 for l in translation_result:
                     f.write(l + '\n')
 

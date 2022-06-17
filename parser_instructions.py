@@ -242,7 +242,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             for var, type_name in variables_names_with_types.items():
                 var, size, subindex, is_array = generic_regexes.split_varname_index(var)
                 if is_array:
-                    translation_result_tmp.append("    multi_dimensional_array<%s> %s%s;"%(type_name, var, size))
+                    #translation_result_tmp.append("    multi_dimensional_array<%s> %s%s;"%(type_name, var, size))
+                    translation_result_tmp.append("    %s %s%s;"%(type_name, var, size))
                 else:
                     translation_result_tmp.append("    %s %s;"%(type_name, var))
             
@@ -311,13 +312,15 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
 
         if instruction_name == 'interrupt decl':
             interrupt_declaration_template = \
-                "def fcond%(interrupt_name)s():\n" \
-                "    if interrupt_flags[%(interrupt_number)s]:\n" \
-                "        return (%(condition)s)\n" \
-                "    return False\n" \
-                "def fcall%(interrupt_name)s():\n" \
-                "    %(instruction)s\n" \
-                "interrupts[%(interrupt_number)s] = InterruptData(fcall%(interrupt_name)s, threads_callstack[threading.currentThread][-1], fcond%(interrupt_name)s)\n"
+                "auto fcond%(interrupt_name)s = [&](){" \
+                "    if(interrupt_flags[%(interrupt_number)s])\n" \
+                "        return (%(condition)s);\n" \
+                "    return false;\n" \
+                "};\n" \
+                "auto fcall%(interrupt_name)s = [&](){\n" \
+                "    %(instruction)s;\n" \
+                "};\n" \
+                "interrupts[%(interrupt_number)s] = InterruptData(fcall%(interrupt_name)s, fcond%(interrupt_name)s);\n"
             is_global, interrupt_number, condition, instruction = match_groups
             is_global = not is_global is None 
             node = InterruptObject(interrupt_number, is_global, condition, instruction)
@@ -327,18 +330,18 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             #translation_result_tmp.append('interrupts[%s] = """if %s:%s""" '%(interrupt_number, condition, instruction)] #to be evaluated cyclically with eval
         if instruction_name == 'interrupt on':
             interrupt_number = match_groups[0]
-            translation_result_tmp.append('interrupt_flags[%s] = True'%interrupt_number)
+            translation_result_tmp.append('interrupt_flags[%s] = true;'%interrupt_number)
             node = flow_chart_graphics.FlowInstruction('INTERRUPT ON %s'%interrupt_number)
             self.append(node)
 
         if instruction_name == 'interrupt off':
             interrupt_number = match_groups[0]
-            translation_result_tmp.append('interrupt_flags[%s] = False'%interrupt_number)
+            translation_result_tmp.append('interrupt_flags[%s] = false;'%interrupt_number)
             node = flow_chart_graphics.FlowInstruction('INTERRUPT OFF %s'%interrupt_number)
             self.append(node)
 
         if instruction_name == 'resume':
-            translation_result_tmp.append("robot.resume_interrupt()")
+            translation_result_tmp.append("robot.resume_interrupt();")
             node = flow_chart_graphics.FlowInstruction('RESUME')
             self.append(node)
 
@@ -397,7 +400,8 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
                     #check if it is an array
                     if is_array:
                         #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = multi_dimensional_array(%s, %s)"%(var,type_name,size))
-                        res = "multi_dimensional_array<%s> %s%s;"%(type_name, var, size)
+                        #res = "multi_dimensional_array<%s> %s%s;"%(type_name, var, size)
+                        res = "%s %s%s;"%(type_name, var, size)
                     else:
                         #translation_result_tmp.append(("global_defs." if is_global else "")+"%s = %s()"%(var,type_name))
                         res = "%s %s;"%(type_name, var)
@@ -522,9 +526,9 @@ class KRLGenericParser(flow_chart_graphics.FlowInstruction):
             is_global = not is_global is None
             res = ''
             if signal_end is None:
-                res = "signal %s(%s);"%(signal_name, signal_start)
+                res = "signal %s(&%s);"%(signal_name, signal_start)
             else:
-                res = "signal %s(%s, %s);"%(signal_name, signal_start, signal_end)
+                res = "signal %s(&%s, &%s);"%(signal_name, signal_start, signal_end)
                 
             translation_result_tmp.append(res)
             if is_global:
